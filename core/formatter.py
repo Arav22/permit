@@ -1,7 +1,11 @@
-"""Formats analysis results into a box display."""
+"""Formats analysis results into a box display.
+
+All box content is pure ASCII — no emoji, no Unicode arrows, no em dashes.
+This guarantees every character is exactly 1 terminal column, making
+right-border alignment correct on every terminal and font.
+"""
 
 import re
-import unicodedata
 from core.analyzer import Analysis
 from core.patterns import WorkflowMatch
 from typing import Optional
@@ -24,42 +28,17 @@ _BLAST_LABELS = {
 
 _ANSI_RE = re.compile(r"\033\[[0-9;]*m")
 _BOX_WIDTH = 62
-_FE0F = "️"
-
-
-def _char_width(ch: str) -> int:
-    """Terminal column width of a single character."""
-    eaw = unicodedata.east_asian_width(ch)
-    if eaw in ("W", "F"):
-        return 2
-    cat = unicodedata.category(ch)
-    if cat in ("Mn", "Me", "Cf"):
-        return 0
-    return 1
 
 
 def _vlen(s: str) -> int:
-    """Visible terminal column width, ignoring ANSI escapes."""
-    clean = _ANSI_RE.sub("", s)
-    width = 0
-    prev_w = 0
-    for ch in clean:
-        if ch == _FE0F:
-            if prev_w == 1:
-                width += 1
-                prev_w = 2
-            continue
-        cw = _char_width(ch)
-        width += cw
-        prev_w = cw
-    return width
+    """Visible length after stripping ANSI. ASCII-only content assumed."""
+    return len(_ANSI_RE.sub("", s))
 
 
 def _truncate(s: str, max_w: int) -> str:
     """Truncate to max visible width, preserving ANSI codes."""
     visible = 0
     result = []
-    prev_w = 0
     i = 0
     while i < len(s):
         m = _ANSI_RE.match(s, i)
@@ -67,35 +46,27 @@ def _truncate(s: str, max_w: int) -> str:
             result.append(m.group())
             i = m.end()
             continue
-        if s[i] == _FE0F:
-            extra = 1 if prev_w == 1 else 0
-            if visible + extra > max_w - 1:
-                result.append("...")
-                break
-            result.append(s[i])
-            visible += extra
-            if extra:
-                prev_w = 2
-            i += 1
-            continue
-        cw = _char_width(s[i])
-        if visible + cw > max_w - 1:
+        if visible >= max_w - 3:
             result.append("...")
             break
         result.append(s[i])
-        visible += cw
-        prev_w = cw
+        visible += 1
         i += 1
     return "".join(result)
 
 
-def _pad_line(s: str, width: int) -> str:
-    """Pad a line with spaces to exact visible terminal width."""
+def _pad(s: str, width: int) -> str:
+    """Pad a line with spaces to exact visible width."""
     vl = _vlen(s)
     if vl > width:
         s = _truncate(s, width)
         vl = _vlen(s)
     return s + " " * (width - vl)
+
+
+def _ascii(s: str) -> str:
+    """Strip all non-ASCII characters from a string."""
+    return "".join(c for c in s if ord(c) < 128)
 
 
 def format_explanation(
@@ -107,31 +78,26 @@ def format_explanation(
 ) -> str:
     color = _RISK_COLORS.get(analysis.risk, "")
     label = _RISK_LABELS.get(analysis.risk, "UNKNOWN")
+    title = _ascii(analysis.title).strip()
 
     rows = []
 
-    # Line 1: risk badge + what command/action
-    rows.append(f"{analysis.icon}  {color}{_BOLD}{label}{_RESET} -- {analysis.title}")
+    rows.append(f"{color}{_BOLD}{label}{_RESET} {title}")
+    rows.append(f"  {_ascii(analysis.explanation).strip()}")
 
-    # Line 2: plain-English explanation
-    rows.append(f"   {analysis.explanation}")
-
-    # Stages (pipe/chain breakdown)
     if analysis.stages and verbosity != "minimal":
         rows.append("")
         for stage in analysis.stages:
-            rows.append(f"  -> {stage}")
+            rows.append(f"  -> {_ascii(stage).strip()}")
 
-    # Warnings first — these are the most important
     if analysis.warnings:
         rows.append("")
         for w in analysis.warnings:
-            rows.append(f"{_RED}!! {w}{_RESET}")
+            rows.append(f"{_RED}!! {_ascii(w).strip()}{_RESET}")
 
-    # Scope
     if verbosity != "minimal":
         blast = _BLAST_LABELS.get(analysis.blast_radius, "")
-        scope_line = analysis.scope
+        scope_line = _ascii(analysis.scope).strip()
         if blast:
             scope_line += f" [{blast}]"
         rows.append("")
@@ -140,19 +106,18 @@ def format_explanation(
     if file_heat > 1 and verbosity != "minimal":
         rows.append(f"{_DIM}Touched {file_heat}x this session{_RESET}")
 
-    # Workflow pattern
     if workflow and verbosity != "minimal":
+        wf_label = _ascii(workflow.label).strip()
         step = f"step {workflow.stage + 1}/{workflow.total}"
-        rows.append(f"{_DIM}Flow: {workflow.label} ({step}){_RESET}")
+        rows.append(f"{_DIM}Flow: {wf_label} ({step}){_RESET}")
 
-    # Chain — only show if there are meaningful recent entries
     if related_chain and verbosity != "minimal":
-        chain_lines = related_chain.strip().split("\n")
+        chain_lines = _ascii(related_chain).strip().split("\n")
         if len(chain_lines) > 1:
             rows.append("")
             rows.append(f"{_DIM}Recent:{_RESET}")
-            for chain_line in chain_lines:
-                rows.append(f"{_DIM}  {chain_line}{_RESET}")
+            for cl in chain_lines:
+                rows.append(f"{_DIM}  {cl.strip()}{_RESET}")
 
     return _build_box(rows)
 
@@ -160,14 +125,16 @@ def format_explanation(
 def format_compact(analysis: Analysis, workflow: Optional[WorkflowMatch] = None) -> str:
     color = _RISK_COLORS.get(analysis.risk, "")
     label = _RISK_LABELS.get(analysis.risk, "?")
-    line = f"{analysis.icon} {color}{label}{_RESET}: {analysis.explanation}"
+    explanation = _ascii(analysis.explanation).strip()
+    line = f"{color}{label}{_RESET}: {explanation}"
     if workflow:
-        line += f" {_DIM}[{workflow.label}]{_RESET}"
+        wf_label = _ascii(workflow.label).strip()
+        line += f" {_DIM}[{wf_label}]{_RESET}"
     return line
 
 
 def _build_box(rows: list[str]) -> str:
-    """Build a proper 4-sided box. Content padded to fixed width."""
+    """Build a proper 4-sided box. All content is ASCII so len() == columns."""
     inner_w = _BOX_WIDTH - 4  # "| " content " |"
 
     top = f"+-permit-{'-' * (inner_w - 6)}+"
@@ -175,7 +142,7 @@ def _build_box(rows: list[str]) -> str:
 
     lines = ["", top]
     for row in rows:
-        padded = _pad_line(row, inner_w)
+        padded = _pad(row, inner_w)
         lines.append(f"| {padded}{_RESET} |")
     lines.append(bottom)
 
