@@ -1,98 +1,132 @@
 # permit
 
-**Plain-English permission explainer for Claude Code.**
+**Every AI coding tool asks for permissions. None explain what they mean.**
 
-When Claude Code asks for permission to run a tool, `permit` tells you:
-- **What** the command does
-- **Why** Claude is asking
-- **How** it connects to other operations in the session
-- Whether it's **safe** or needs careful review
+When Claude Code says *"Claude wants to run `git push origin main --force`"* — do you know what that actually does? What about `kubectl apply -f deployment.yaml` or `sed -i 's/foo/bar/' config.py`?
 
-Works as a Claude Code plugin via PreToolUse hooks. No configuration needed — install and it starts explaining.
+**permit** translates every permission prompt into plain English. It tells you what's happening, why it matters, how risky it is, and how it connects to what Claude did before.
+
+## Before vs After
+
+**Without permit** — you see this:
+```
+Claude wants to run: sed -i '' 's/DB_HOST=localhost/DB_HOST=prod.db.internal/' .env
+  Allow?  [y/n]
+```
+
+**With permit** — you see this:
+```
++-permit-----------------------------------------------------+
+| ⚠️  CAUTION -- sed -i s/DB_HOST=localhost/DB_HOST=pr...    |
+|    Edits files in-place                                    |
+|                                                            |
+| !! Touches sensitive path: Environment file — likely       |
+|    contains secrets or API keys                            |
+|                                                            |
+| Scope: Modifies local files. Reversible with git if       |
+|    tracked.                                                |
+|                                                            |
+| Recent:                                                    |
+|      |- Read — ~/.../project/.env (12s ago)                |
+|      '- sed -i s/DB_HOST=localhost/DB_HOST=pr... (now)     |
++------------------------------------------------------------+
+```
+
+Now you know: it's an in-place edit of your `.env` file, it likely contains secrets, and Claude just read it 12 seconds ago.
 
 ## Features
 
-- **Instant explanations** — every permission prompt gets a plain-English breakdown
-- **Safety ratings** — color-coded risk levels (safe / caution / danger)
-- **Connection tracking** — shows how operations relate (e.g., "this edit follows the read of the same file")
-- **Dependency diagrams** — when multiple tools fire in sequence, shows the chain
-- **Command breakdown** — for bash commands, explains each flag and argument
-- **File operation context** — for edits/writes, explains what's changing and why it matters
-- **History awareness** — tracks what's been approved/denied to give context on repeated patterns
+- **Risk ratings** — every tool call is classified as safe (green), caution (yellow), or danger (red)
+- **Pipe & chain parsing** — `cat file | grep err | wc -l` is broken into 3 stages, each explained
+- **Workflow detection** — recognizes patterns like "explore -> modify", "test -> fix -> test", "stage -> commit -> push" and tells you which step you're on
+- **Blast radius** — tells you if an action is local-only, project-wide, system-wide, or remote/visible-to-others
+- **Sensitive path alerts** — warns when commands touch `.env`, SSH keys, credentials, CI configs, or cloud configs
+- **Session memory** — tracks what Claude has done this session, shows connections between operations
+- **File heat** — flags files that have been touched multiple times ("Touched 5x this session")
+- **Content analysis** — for edits, detects changes to imports, function signatures, config values, and env vars
+- **100+ command patterns** — recognizes git, docker, kubectl, terraform, aws, gcloud, npm, pip, cargo, go, make, and more
+- **Zero config** — install and it works. Optional config if you want to tune verbosity or filtering
 
 ## Install
 
-### From Plugin Marketplace
+### As a Claude Code plugin
 
-```
-/install-plugin permit
-```
-
-### Manual Install
-
-Copy this directory to your Claude Code plugins:
+Copy this directory to your plugins path and add hooks to your settings:
 
 ```bash
+# Copy plugin
 cp -r permit ~/.claude/plugins/local/permit
-```
 
-Then add to your settings:
+# Or just add hooks directly to ~/.claude/settings.json:
+```
 
 ```json
 {
-  "plugins": ["local/permit"]
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "python3 /path/to/permit/hooks/pretooluse.py",
+        "timeout": 5
+      }]
+    }],
+    "PostToolUse": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "python3 /path/to/permit/hooks/posttooluse.py",
+        "timeout": 5
+      }]
+    }]
+  }
 }
 ```
 
+### Requirements
+
+- Python 3.10+
+- No external dependencies (stdlib only)
+
 ## How It Works
 
-`permit` registers a PreToolUse hook that intercepts every tool call before it reaches the permission dialog. It:
+permit runs as a pair of Claude Code hooks:
 
-1. **Parses** the tool name and input (command, file path, edit content, etc.)
-2. **Analyzes** the operation — what it does, what it touches, what could go wrong
-3. **Checks history** — has this file/command been seen before in this session?
-4. **Rates risk** — safe (read-only, familiar), caution (writes, new files), danger (destructive, network, secrets)
-5. **Formats** a concise explanation shown alongside the permission prompt
+1. **PreToolUse** — fires before every tool call. Analyzes the tool name and input, checks session history for context, detects workflow patterns, and outputs a formatted explanation as a system message.
 
-## What You See
+2. **PostToolUse** — fires after every tool call. Records what happened in session history so future explanations can show connections.
 
-When Claude asks to run `git push origin main --force`:
+### Architecture
 
 ```
-┌─ permit ──────────────────────────────────────────┐
-│ ⚠️  CAUTION — Destructive git operation            │
-│                                                    │
-│ Force-pushes your local main branch to remote,     │
-│ overwriting any commits on origin that aren't       │
-│ in your local history.                             │
-│                                                    │
-│ Risk: Teammates' unpulled commits will be lost.    │
-│ Scope: Affects remote repository (visible to all). │
-│                                                    │
-│ 🔗 Related: You ran `git commit` 2 steps ago       │
-│    └─ commit → push (deploying what you committed) │
-└────────────────────────────────────────────────────┘
+hooks/
+  pretooluse.py      entry point for PreToolUse hook
+  posttooluse.py     entry point for PostToolUse hook
+
+core/
+  analyzer.py        classifies tools, parses bash commands, detects risk
+  patterns.py        workflow pattern recognition (explore, modify, test-fix, deploy)
+  tracker.py         session history with file heat tracking
+  formatter.py       ASCII box output with ANSI colors
+  config.py          optional user configuration
 ```
 
-When Claude asks to edit `src/config.ts`:
+### What gets analyzed
 
-```
-┌─ permit ──────────────────────────────────────────┐
-│ ✅ SAFE — File edit                                │
-│                                                    │
-│ Modifying src/config.ts: replacing a database      │
-│ connection string with a new value.                │
-│                                                    │
-│ Scope: Local file only. Reversible with git.       │
-│                                                    │
-│ 🔗 Related: Claude read this file 1 step ago       │
-│    └─ read → edit (modifying what it just read)    │
-└────────────────────────────────────────────────────┘
-```
+| Tool | What permit checks |
+|------|-------------------|
+| **Bash** | Command classification, pipe chains, redirects, compound commands, sensitive paths, scope |
+| **Edit** | Import/export changes, function signatures, config values, env vars, file sensitivity |
+| **Write** | New vs overwrite, CI/build config detection, sensitive paths |
+| **Read** | Sensitive file access (credentials, keys, configs) |
+| **Agent** | Sub-agent description and scope |
+| **WebFetch** | Domain extraction, network scope |
+| **Workflow** | Multi-agent spawn warning |
+| **Others** | Generic tool identification with review prompt |
 
 ## Configuration
 
-Optional settings in `.claude/permit.config.json`:
+Optional — create `.claude/permit.config.json` in your project or home directory:
 
 ```json
 {
@@ -105,10 +139,34 @@ Optional settings in `.claude/permit.config.json`:
 
 | Setting | Values | Default | Description |
 |---------|--------|---------|-------------|
-| `verbosity` | `"minimal"`, `"normal"`, `"detailed"` | `"normal"` | How much detail to show |
-| `showDiagram` | `true`, `false` | `true` | Show connection diagrams |
+| `verbosity` | `minimal`, `normal`, `detailed` | `normal` | How much detail to show |
+| `showDiagram` | `true`, `false` | `true` | Show operation chain diagrams |
 | `showHistory` | `true`, `false` | `true` | Show related previous operations |
-| `riskThreshold` | `"all"`, `"caution"`, `"danger"` | `"all"` | Only show for this risk level and above |
+| `riskThreshold` | `all`, `caution`, `danger` | `all` | Only show for this risk level and above |
+
+Set `riskThreshold` to `caution` if you don't want explanations for safe/read-only operations.
+
+## Development
+
+```bash
+# Run tests
+pytest -v
+
+# Run a specific test file
+pytest tests/test_analyzer.py -v
+
+# Test a hook manually
+echo '{"tool_name": "Bash", "tool_input": {"command": "git push --force"}}' | python3 hooks/pretooluse.py
+```
+
+## Why this exists
+
+AI coding assistants ask for dozens of permissions per session. Most users either:
+- **Approve everything** because they don't understand the prompts
+- **Deny everything** because they're cautious but can't evaluate the risk
+- **Slow down** to manually parse each command, breaking their flow
+
+permit gives you the context to make fast, informed decisions. It's the missing UX layer between AI tools and the humans who approve them.
 
 ## License
 

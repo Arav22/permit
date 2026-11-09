@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""PostToolUse hook — records completed tool calls for chain tracking."""
+"""PostToolUse hook — records completed tool calls for session tracking."""
 
 import json
 import os
 import sys
 
-PLUGIN_ROOT = os.environ.get("CLAUDE_PLUGIN_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PLUGIN_ROOT = os.environ.get(
+    "CLAUDE_PLUGIN_ROOT",
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+)
 if PLUGIN_ROOT not in sys.path:
     sys.path.insert(0, PLUGIN_ROOT)
 

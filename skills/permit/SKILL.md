@@ -1,7 +1,7 @@
 ---
 name: permit
-description: Explain what the last permission prompt was about, or configure permit settings
-argument-hint: [question about a permission | config]
+description: Explain what the last permission prompt was about, show session activity, or configure permit settings
+argument-hint: [question about a permission | config | history]
 allowed-tools: [Read, Bash, Write, Edit]
 ---
 
@@ -16,6 +16,7 @@ Read the permit session history file to find the most recent tool calls and expl
 2. Why Claude needed it
 3. Whether it was safe to approve
 4. How it connected to other recent operations
+5. What workflow pattern was detected (explore, modify, test-fix, deploy, etc.)
 
 History file location: check `$TMPDIR/permit-history-latest.json` or `/tmp/permit-history-latest.json`.
 
@@ -25,6 +26,8 @@ Answer their question about Claude Code permissions in plain English. Common que
 - "Why did it ask to read that file?" — Explain what Read does and why Claude needed that file
 - "Is that command safe?" — Analyze the bash command for risk
 - "What's the chain of operations?" — Show how recent tool calls connect
+- "What pattern is Claude following?" — Identify the workflow (explore, modify, test-fix, etc.)
+- "Which files have been touched most?" — Show file heat from session history
 
 ## When the user says "config"
 
@@ -32,12 +35,16 @@ Show current permit configuration and help them change it. Config lives at `.cla
 
 ```json
 {
-  "verbosity": "normal",    // minimal, normal, detailed
-  "showDiagram": true,      // show operation chain diagrams
-  "showHistory": true,      // show related previous operations
-  "riskThreshold": "all"    // all, caution, danger
+  "verbosity": "normal",
+  "showDiagram": true,
+  "showHistory": true,
+  "riskThreshold": "all"
 }
 ```
+
+## When the user says "history"
+
+Read the session history file and show a timeline of all tool calls this session, with risk ratings and workflow patterns.
 
 ## Response style
 

@@ -5,15 +5,19 @@ import json
 import os
 import sys
 
-PLUGIN_ROOT = os.environ.get("CLAUDE_PLUGIN_ROOT", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PLUGIN_ROOT = os.environ.get(
+    "CLAUDE_PLUGIN_ROOT",
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+)
 if PLUGIN_ROOT not in sys.path:
     sys.path.insert(0, PLUGIN_ROOT)
 
 try:
     from core.analyzer import analyze_tool
-    from core.tracker import find_related, get_chain, format_chain
+    from core.tracker import get_chain, get_history, format_chain
     from core.formatter import format_explanation, format_compact
     from core.config import load_config, should_show
+    from core.patterns import detect_workflow, detect_file_heat
 except ImportError as e:
     print(json.dumps({"systemMessage": f"[permit] import error: {e}"}))
     sys.exit(0)
@@ -37,19 +41,25 @@ def main():
         sys.exit(0)
 
     file_path = tool_input.get("file_path")
-    chain_text = ""
+    history = get_history()
 
+    workflow = detect_workflow(history, tool_name, analysis.title, file_path)
+    heat = detect_file_heat(history, file_path) if file_path else 0
+
+    chain_text = ""
     if config.show_history:
         chain = get_chain(limit=3)
         if chain:
             chain_text = format_chain(chain, analysis.title)
 
     if config.verbosity == "minimal":
-        message = format_compact(analysis)
+        message = format_compact(analysis, workflow=workflow)
     else:
         message = format_explanation(
             analysis,
             related_chain=chain_text if config.show_diagram else "",
+            workflow=workflow,
+            file_heat=heat,
             verbosity=config.verbosity,
         )
 

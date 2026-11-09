@@ -1,4 +1,8 @@
-"""Session history tracker — remembers past tool calls to show connections."""
+"""Session history tracker — remembers tool calls across a session.
+
+Uses CLAUDE_SESSION_ID when available, falls back to PPID-based session files.
+Tracks file heat (how many times each file is touched) and operation patterns.
+"""
 
 import json
 import os
@@ -14,45 +18,54 @@ class ToolEvent:
     summary: str
     file_path: Optional[str] = None
     risk: str = "safe"
+    denied: bool = False
 
 
-HISTORY_FILE = os.path.join(
-    os.environ.get("TMPDIR", "/tmp"),
-    f"permit-history-{os.getpid()}.json",
-)
+def _session_file() -> str:
+    """Determine the session history file path."""
+    tmpdir = os.environ.get("TMPDIR", "/tmp")
+    session_id = os.environ.get("CLAUDE_SESSION_ID")
+    if session_id:
+        return os.path.join(tmpdir, f"permit-session-{session_id}.json")
+    ppid = os.getppid()
+    return os.path.join(tmpdir, f"permit-session-{ppid}.json")
 
-SESSION_FILE = os.path.join(
-    os.environ.get("TMPDIR", "/tmp"),
-    "permit-history-latest.json",
-)
+
+def _latest_file() -> str:
+    """Shared file for the /permit skill to read from."""
+    tmpdir = os.environ.get("TMPDIR", "/tmp")
+    return os.path.join(tmpdir, "permit-history-latest.json")
 
 
-def _load_history() -> list:
-    for path in [SESSION_FILE, HISTORY_FILE]:
+def _load_history() -> list[dict]:
+    """Load session history, preferring session-specific file."""
+    for path in [_session_file(), _latest_file()]:
         try:
             with open(path, "r") as f:
                 data = json.load(f)
-                if isinstance(data, list) and len(data) > 0:
+                if isinstance(data, list) and data:
                     newest = data[-1].get("timestamp", 0)
-                    if time.time() - newest < 3600:
+                    if time.time() - newest < 7200:  # 2h window
                         return data
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
             continue
     return []
 
 
-def _save_history(history: list):
-    trimmed = history[-50:]
-    for path in [SESSION_FILE, HISTORY_FILE]:
+def _save_history(history: list[dict]):
+    """Persist history to both session-specific and latest files."""
+    trimmed = history[-100:]  # keep last 100 events
+    for path in [_session_file(), _latest_file()]:
         try:
             with open(path, "w") as f:
                 json.dump(trimmed, f)
-            break
         except OSError:
             continue
 
 
-def record_event(tool_name: str, summary: str, file_path: Optional[str] = None, risk: str = "safe"):
+def record_event(tool_name: str, summary: str, file_path: Optional[str] = None,
+                 risk: str = "safe", denied: bool = False):
+    """Record a tool event in session history."""
     history = _load_history()
     event = ToolEvent(
         timestamp=time.time(),
@@ -60,49 +73,65 @@ def record_event(tool_name: str, summary: str, file_path: Optional[str] = None, 
         summary=summary,
         file_path=file_path,
         risk=risk,
+        denied=denied,
     )
     history.append(asdict(event))
     _save_history(history)
 
 
-def find_related(tool_name: str, file_path: Optional[str] = None, limit: int = 3) -> list:
-    """Find recent related operations."""
-    history = _load_history()
-    related = []
-
-    for event in reversed(history):
-        if len(related) >= limit:
-            break
-
-        if file_path and event.get("file_path") == file_path:
-            related.append(event)
-        elif event.get("tool_name") == tool_name:
-            related.append(event)
-
-    return list(reversed(related))
+def get_history() -> list[dict]:
+    """Get the full session history."""
+    return _load_history()
 
 
-def get_chain(limit: int = 5) -> list:
+def get_chain(limit: int = 5) -> list[dict]:
     """Get the most recent operation chain."""
     history = _load_history()
     return history[-limit:]
 
 
-def format_chain(chain: list, current_summary: str) -> str:
-    """Format an operation chain as a dependency diagram."""
+def find_related(tool_name: str, file_path: Optional[str] = None, limit: int = 3) -> list[dict]:
+    """Find recent related operations by tool name or file path."""
+    history = _load_history()
+    related = []
+    for event in reversed(history):
+        if len(related) >= limit:
+            break
+        if file_path and event.get("file_path") == file_path:
+            related.append(event)
+        elif event.get("tool_name") == tool_name:
+            related.append(event)
+    return list(reversed(related))
+
+
+def format_chain(chain: list[dict], current_summary: str) -> str:
+    """Format an operation chain as a text diagram."""
     if not chain:
         return ""
 
     lines = []
     for i, event in enumerate(chain):
-        prefix = "   ├─ " if i < len(chain) - 1 else "   └─ "
+        prefix = "   |- "
         elapsed = time.time() - event.get("timestamp", time.time())
         if elapsed < 60:
             ago = f"{int(elapsed)}s ago"
-        else:
+        elif elapsed < 3600:
             ago = f"{int(elapsed / 60)}m ago"
-        lines.append(f"{prefix}{event['summary']} ({ago})")
+        else:
+            ago = f"{int(elapsed / 3600)}h ago"
 
-    lines.append(f"   └─ {current_summary} (now)")
+        summary = event.get("summary", "unknown")
+        lines.append(f"{prefix}{summary} ({ago})")
 
+    lines.append(f"   '- {current_summary} (now)")
     return "\n".join(lines)
+
+
+def _shorten(path: str) -> str:
+    home = os.path.expanduser("~")
+    if path.startswith(home):
+        path = "~" + path[len(home):]
+    parts = path.split("/")
+    if len(parts) > 4:
+        return parts[0] + "/" + parts[1] + "/.../" + "/".join(parts[-2:])
+    return path

@@ -1,0 +1,9 @@
+{
+  "name": "permit",
+  "version": "1.0.0",
+  "description": "Plain-English permission explainer for Claude Code — tells you what, why, and how safe every tool call is",
+  "author": "Arav",
+  "license": "MIT",
+  "hooks": "../hooks/hooks.json",
+  "skills": "../skills"
+}
