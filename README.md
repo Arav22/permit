@@ -86,16 +86,19 @@ Now you know: it's an in-place edit of your `.env` file, it likely contains secr
 
 ## Install
 
-### As a Claude Code plugin
-
-Copy this directory to your plugins path and add hooks to your settings:
+**One command:**
 
 ```bash
-# Copy plugin
-cp -r permit ~/.claude/plugins/local/permit
-
-# Or just add hooks directly to ~/.claude/settings.json:
+git clone https://github.com/Arav22/permit.git && bash permit/install.sh
 ```
+
+This copies the plugin to `~/.claude/plugins/permit` and adds the hooks to your Claude Code settings. Restart Claude Code and you're done.
+
+To uninstall: `bash permit/uninstall.sh`
+
+### Manual install
+
+If you prefer to set it up yourself, add these hooks to `~/.claude/settings.json`:
 
 ```json
 {
@@ -104,7 +107,7 @@ cp -r permit ~/.claude/plugins/local/permit
       "matcher": "",
       "hooks": [{
         "type": "command",
-        "command": "python3 /path/to/permit/hooks/pretooluse.py",
+        "command": "python3 ~/.claude/plugins/permit/hooks/pretooluse.py",
         "timeout": 5
       }]
     }],
@@ -112,7 +115,7 @@ cp -r permit ~/.claude/plugins/local/permit
       "matcher": "",
       "hooks": [{
         "type": "command",
-        "command": "python3 /path/to/permit/hooks/posttooluse.py",
+        "command": "python3 ~/.claude/plugins/permit/hooks/posttooluse.py",
         "timeout": 5
       }]
     }]
@@ -124,6 +127,14 @@ cp -r permit ~/.claude/plugins/local/permit
 
 - Python 3.10+
 - No external dependencies (stdlib only)
+
+### Demo
+
+See what permit looks like before installing:
+
+```bash
+python3 demo.py
+```
 
 ## How It Works
 
