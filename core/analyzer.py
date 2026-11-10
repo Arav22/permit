@@ -130,6 +130,7 @@ _CAUTION = [
 
 # Safe: read-only, informational, local-only
 _SAFE = [
+    (r"^lsof\b", "Lists open files and network connections"),
     (r"^ls\b", "Lists directory contents"),
     (r"^ll\b", "Lists directory contents (detailed)"),
     (r"^la\b", "Lists all files including hidden"),
@@ -380,6 +381,24 @@ def _short_cmd(cmd: str, max_len: int = 40) -> str:
     return s[:max_len - 3] + "..."
 
 
+def _cmd_label(cmd: str) -> str:
+    """Short label for a command, e.g. 'git push', 'npm install', 'rm -rf'."""
+    binary = _get_binary(cmd)
+    stripped = cmd.strip()
+    try:
+        parts = shlex.split(stripped)
+    except ValueError:
+        parts = stripped.split()
+    if binary in ("git", "npm", "npx", "yarn", "pnpm", "pip", "kubectl",
+                   "docker", "terraform", "aws", "gcloud", "gh", "cargo",
+                   "go", "brew"):
+        if len(parts) >= 2:
+            return f"{binary} {parts[1]}"
+    if binary == "rm" and len(parts) >= 2 and parts[1].startswith("-"):
+        return f"rm {parts[1]}"
+    return binary
+
+
 def _classify_single_cmd(cmd: str) -> tuple[str, str, str]:
     """Classify a single command (no pipes/chains). Returns (risk, title, explanation)."""
     stripped = cmd.strip()
@@ -399,8 +418,8 @@ def _classify_single_cmd(cmd: str) -> tuple[str, str, str]:
 
     binary = _get_binary(stripped)
     if binary:
-        return ("caution", title, f"Runs `{binary}` -- not in the recognized list, review the full command")
-    return ("caution", title, "Could not parse command -- review manually")
+        return ("caution", title, f"Runs {binary} -- review what this does before allowing")
+    return ("caution", title, "Could not parse command -- review before allowing")
 
 
 def _compute_scope(cmd: str) -> tuple[str, str]:
@@ -418,7 +437,44 @@ def analyze_bash(command: str) -> Analysis:
     """Analyze a bash command with pipe/chain/redirect awareness."""
     cmd = command.strip()
 
-    # Check full command for cross-pipe danger patterns BEFORE splitting
+    # Split chains FIRST so compound commands always get per-stage analysis
+    chain_parts = _split_chain(cmd)
+
+    # Multi-command chain (&&, ||, ;)
+    if len(chain_parts) > 1:
+        worst_risk = "safe"
+        stages = []
+        all_warnings = []
+        risk_order = {"safe": 0, "caution": 1, "danger": 2}
+
+        for op, part in chain_parts:
+            risk, title, explanation = _classify_single_cmd(part)
+            if risk_order.get(risk, 0) > risk_order.get(worst_risk, 0):
+                worst_risk = risk
+            label = f"{op + ' ' if op else ''}{_cmd_label(part)}: {explanation}"
+            stages.append(label)
+            all_warnings.extend(_check_sensitive_in_cmd(part))
+
+        redirects = _detect_redirects(cmd)
+        scope, blast = _compute_scope(cmd)
+        icon_map = {"safe": "✅", "caution": "⚠️", "danger": "⛔"}
+        labels = [_cmd_label(part) for _, part in chain_parts]
+        chain_title = ", then ".join(labels)
+        if len(chain_title) > 40:
+            chain_title = chain_title[:37] + "..."
+
+        return Analysis(
+            risk=worst_risk,
+            icon=icon_map.get(worst_risk, "❓"),
+            title=chain_title,
+            explanation=f"Runs {len(chain_parts)} commands in order.",
+            scope=scope,
+            blast_radius=blast,
+            warnings=all_warnings + [f"Redirect: {r}" for r in redirects],
+            stages=stages,
+        )
+
+    # Single command or pipeline — check full-command danger patterns
     for pattern, desc in _DANGER:
         if re.search(pattern, cmd, re.IGNORECASE):
             scope, blast = _compute_scope(cmd)
@@ -436,49 +492,9 @@ def analyze_bash(command: str) -> Analysis:
                 warnings=warnings,
             )
 
-    chain_parts = _split_chain(cmd)
-
-    if len(chain_parts) <= 1:
-        pipe_stages = _split_pipeline(cmd)
-    else:
-        pipe_stages = None
-
-    # Multi-command chain (&&, ||, ;)
-    if chain_parts and len(chain_parts) > 1:
-        worst_risk = "safe"
-        stages = []
-        all_warnings = []
-        risk_order = {"safe": 0, "caution": 1, "danger": 2}
-
-        for op, part in chain_parts:
-            risk, title, explanation = _classify_single_cmd(part)
-            if risk_order.get(risk, 0) > risk_order.get(worst_risk, 0):
-                worst_risk = risk
-            label = f"{op + ' ' if op else ''}{_get_binary(part)}: {explanation}"
-            stages.append(label)
-            all_warnings.extend(_check_sensitive_in_cmd(part))
-
-        redirects = _detect_redirects(cmd)
-        scope, blast = _compute_scope(cmd)
-        icon_map = {"safe": "✅", "caution": "⚠️", "danger": "⛔"}
-        binaries = [_get_binary(part) for _, part in chain_parts]
-        chain_title = " && ".join(binaries)
-        if len(chain_title) > 40:
-            chain_title = chain_title[:37] + "..."
-
-        return Analysis(
-            risk=worst_risk,
-            icon=icon_map.get(worst_risk, "❓"),
-            title=chain_title,
-            explanation=f"{len(chain_parts)}-step chain: runs sequentially.",
-            scope=scope,
-            blast_radius=blast,
-            warnings=all_warnings + [f"Redirect: {r}" for r in redirects],
-            stages=stages,
-        )
-
     # Pipeline (cmd | cmd | cmd)
-    if pipe_stages and len(pipe_stages) > 1:
+    pipe_stages = _split_pipeline(cmd)
+    if len(pipe_stages) > 1:
         worst_risk = "safe"
         stages = []
         all_warnings = []

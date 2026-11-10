@@ -27,7 +27,7 @@ _BLAST_LABELS = {
 }
 
 _ANSI_RE = re.compile(r"\033\[[0-9;]*m")
-_BOX_WIDTH = 62
+_BOX_WIDTH = 68
 
 
 def _vlen(s: str) -> int:
