@@ -16,23 +16,60 @@ Claude wants to run: sed -i '' 's/DB_HOST=localhost/DB_HOST=prod.db.internal/' .
 
 **With permit** — you see this:
 ```
-+-permit----------------------------------------------------------+
-| CAUTION sed -i s/DB_HOST=localhost/DB_HOST=prod.db.internal/... |
-|   Edits files in-place                                          |
-|                                                                 |
-| !! Touches sensitive path: Environment file -- likely           |
-|    contains secrets or API keys                                 |
-|                                                                 |
-| Scope: Modifies local files. Reversible with git if tracked.   |
-|   [Project files]                                               |
-|                                                                 |
-| Recent:                                                         |
-|   |- Read -- .env (12s ago)                                     |
-|   '- sed -i s/DB_HOST=localhost/DB_HOST=prod... (now)           |
-+------------------------------------------------------------------+
++-permit-----------------------------------------------------------+
+| CAUTION sed -i '' 's/DB_HOST=localhost/DB_HOS...                 |
+|   Edits files in-place                                           |
+|                                                                  |
+| !! Touches sensitive path: Environment file -- likely contain... |
+|                                                                  |
+| Scope: Modifies local files. Reversible with git if tracked. ... |
+|                                                                  |
+| Recent:                                                          |
+|   |- Read -- .env (12s ago)                                      |
+|   '- sed -i '' 's/DB_HOST=localhost/DB_HOS... (now)              |
++-------------------------------------------------------------------+
 ```
 
 Now you know: it's an in-place edit of your `.env` file, it likely contains secrets, and Claude just read it 12 seconds ago.
+
+### More examples
+
+**Dangerous compound command:**
+```
++-permit-----------------------------------------------------------+
+| DANGER rm -rf, then npm install                                  |
+|   Runs 2 commands in order.                                      |
+|                                                                  |
+|   -> rm -rf: Force-deletes files without confirmation            |
+|   -> && npm install: Installs npm packages -- runs install sc... |
+|                                                                  |
+| Scope: Modifies system or project dependencies. [System-wide]    |
++-------------------------------------------------------------------+
+```
+
+**Pipeline:**
+```
++-permit-----------------------------------------------------------+
+| CAUTION curl | jq | head                                         |
+|   Pipes output through 3 commands.                               |
+|                                                                  |
+|   -> curl: Makes a network request                               |
+|   -> jq: Processes JSON data                                     |
+|   -> head: Shows the first lines of a file                       |
+|                                                                  |
+| Scope: Affects remote systems -- visible to others. [Remote /... |
++-------------------------------------------------------------------+
+```
+
+**Safe read-only:**
+```
++-permit-----------------------------------------------------------+
+| SAFE ls -la                                                      |
+|   Lists directory contents                                       |
+|                                                                  |
+| Scope: Local only. No changes made.                              |
++-------------------------------------------------------------------+
+```
 
 ## Features
 
