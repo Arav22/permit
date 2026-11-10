@@ -115,6 +115,10 @@ def format_explanation(
         for stage in analysis.stages:
             rows.append(f"  -> {_ascii(stage).strip()}")
 
+    # Intent line — why Claude is doing this in context
+    if workflow and workflow.confidence >= 0.5 and verbosity != "minimal":
+        rows.append(f"{_DIM}Why: {_ascii(workflow.description).strip()}{_RESET}")
+
     if analysis.warnings:
         rows.append("")
         for w in analysis.warnings:
@@ -152,7 +156,9 @@ def format_explanation(
 
     # Discovery hints — one-liner, shown in all verbosity levels (even smart)
     if hints and verbosity != "minimal":
-        rows.append(f"{_DIM}HINT: {_ascii(hints[0].one_liner).strip()}{_RESET}")
+        h = hints[0]
+        hcolor = _YELLOW if h.is_obsolete else _DIM
+        rows.append(f"{hcolor}HINT: {_ascii(h.one_liner).strip()}{_RESET}")
 
     # Coach tips — shown in normal/detailed, never minimal/smart
     if coaching and verbosity not in ("minimal", "smart"):
@@ -199,7 +205,9 @@ def format_compact(
     if cost:
         line += f" {_DIM}{format_cost(cost.cost_usd)}{_RESET}"
     if hints:
-        line += f"  {_DIM}| HINT: {_ascii(hints[0].one_liner).strip()}{_RESET}"
+        h = hints[0]
+        hcolor = _YELLOW if h.is_obsolete else _DIM
+        line += f"  {hcolor}| HINT: {_ascii(h.one_liner).strip()}{_RESET}"
     return line
 
 

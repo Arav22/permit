@@ -98,6 +98,12 @@ print(generate_report(history))
 ```
 Show the output to the user. It covers: estimated cost, operation breakdown (safe/caution/danger), files touched, snapshots saved, and learning trajectory.
 
+## When the user says "update" or "update hints"
+
+Delegate to `/permit-update` to fetch the latest hints catalog from GitHub.
+This keeps the discovery hints and obsolete-pattern database current with
+new Claude Code features and deprecated patterns.
+
 ## When the user says "coach" or "tips" or "am I using Claude Code right?"
 
 Read `~/.claude/permit-learning.json` to see which anti-patterns have been detected. Explain each one the user has triggered, the right way to do it, and the specific command. Common anti-patterns:

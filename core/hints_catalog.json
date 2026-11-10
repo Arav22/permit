@@ -1,0 +1,95 @@
+{
+  "version": "2026-11",
+  "hints": [
+    {
+      "id": "hint_resume",
+      "one_liner": "/resume -- pick up a previous session where you left off",
+      "added_in": "2024-06",
+      "note": "Claude Code saves session state between runs"
+    },
+    {
+      "id": "hint_model",
+      "one_liner": "/model sonnet -- switch model for cheaper routine work",
+      "added_in": "2024-04",
+      "note": "Sonnet is 5x cheaper than Opus for editing and bash"
+    },
+    {
+      "id": "hint_rollback",
+      "one_liner": "/permit-rollback -- undo any file change with fuzzy matching",
+      "added_in": "2024-01",
+      "note": "permit auto-snapshots before every Edit/Write"
+    },
+    {
+      "id": "hint_compact",
+      "one_liner": "/compact -- compress context without losing work",
+      "added_in": "2024-04",
+      "note": "Keeps all file edits but compresses the conversation history"
+    },
+    {
+      "id": "hint_init",
+      "one_liner": "/init -- auto-generate CLAUDE.md from your project",
+      "added_in": "2024-03",
+      "note": "CLAUDE.md is read automatically every session -- no re-explaining needed"
+    },
+    {
+      "id": "hint_clear",
+      "one_liner": "/clear -- fresh context when moving to a new task",
+      "added_in": "2024-03",
+      "note": "Cheaper than compacting for completely unrelated work"
+    },
+    {
+      "id": "hint_project_report",
+      "one_liner": "/permit project -- see costs and patterns across all sessions",
+      "added_in": "2024-01",
+      "note": "Cross-session breakdown with ASCII charts"
+    },
+    {
+      "id": "hint_add_dir",
+      "one_liner": "/add-dir -- add another project directory to context",
+      "added_in": "2024-05",
+      "note": "Useful for monorepos or multi-repo work"
+    },
+    {
+      "id": "hint_bug",
+      "one_liner": "/bug -- report this to Anthropic with full session context",
+      "added_in": "2024-04",
+      "note": "Sends a bug report with the full conversation for diagnosis"
+    },
+    {
+      "id": "hint_config",
+      "one_liner": "/permit config -- view and change permit settings",
+      "added_in": "2024-01",
+      "note": "Set budget, verbosity, snapshot threshold, coach preferences"
+    }
+  ],
+  "obsolete_patterns": [
+    {
+      "id": "obs_model_env",
+      "detect_in": "Bash",
+      "pattern": "ANTHROPIC_MODEL=",
+      "message": "ANTHROPIC_MODEL env var pollutes your shell -- use /model instead",
+      "newer_command": "/model opus"
+    },
+    {
+      "id": "obs_settings_cat",
+      "detect_in": "Bash",
+      "pattern": "cat.*settings\\.json|settings\\.json.*cat",
+      "message": "Reading settings.json manually -- /config shows settings safely",
+      "newer_command": "/config"
+    },
+    {
+      "id": "obs_skip_permissions",
+      "detect_in": "Bash",
+      "pattern": "dangerously-skip-permissions",
+      "message": "Skip-permissions flag is risky -- configure allowedTools in CLAUDE.md instead",
+      "newer_command": "CLAUDE.md allowedTools"
+    },
+    {
+      "id": "obs_manual_memory",
+      "detect_in": "Edit",
+      "pattern": "\\.claude/memory",
+      "message": "Editing memory files directly -- use /memory commands instead",
+      "newer_command": "/memory"
+    }
+  ]
+}
