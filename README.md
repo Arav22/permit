@@ -4,7 +4,7 @@
 
 When Claude Code says *"Claude wants to run `git push origin main --force`"* — do you know what that actually does? What about `kubectl apply -f deployment.yaml` or `sed -i 's/foo/bar/' config.py`?
 
-**permit** translates every permission prompt into plain English. It tells you what's happening, why it matters, how risky it is, and how it connects to what Claude did before.
+**permit** translates every permission prompt into plain English. It tells you what's happening, why it matters, how risky it is, what it costs, and how it connects to what Claude did before. It also auto-snapshots your files before every edit so you can roll back anytime.
 
 ## Before vs After
 
@@ -73,6 +73,7 @@ Now you know: it's an in-place edit of your `.env` file, it likely contains secr
 
 ## Features
 
+### Permission Explainer
 - **Risk ratings** — every tool call is classified as safe (green), caution (yellow), or danger (red)
 - **Pipe & chain parsing** — `cat file | grep err | wc -l` is broken into 3 stages, each explained
 - **Workflow detection** — recognizes patterns like "explore -> modify", "test -> fix -> test", "stage -> commit -> push" and tells you which step you're on
@@ -82,7 +83,26 @@ Now you know: it's an in-place edit of your `.env` file, it likely contains secr
 - **File heat** — flags files that have been touched multiple times ("Touched 5x this session")
 - **Content analysis** — for edits, detects changes to imports, function signatures, config values, and env vars
 - **100+ command patterns** — recognizes git, docker, kubectl, terraform, aws, gcloud, npm, pip, cargo, go, make, and more
-- **Zero config** — install and it works. Optional config if you want to tune verbosity or filtering
+
+### Cost Estimation
+- **Per-operation cost** — shows estimated cost for each tool call (e.g., "Cost: ~$0.003")
+- **Session total** — running total so you know what the session is costing you
+- **Smart tips** — actionable suggestions to reduce spend:
+  - "This file is ~800 lines -- use offset/limit to read specific sections"
+  - "Agent spawns are expensive -- consider doing this directly"
+  - "Switch to Sonnet for routine tasks (/model sonnet) -- ~5x cheaper"
+  - "Full test run -- consider running only relevant test files"
+- **Model-aware pricing** — supports Opus, Sonnet, and Haiku pricing
+
+### Smart Rollback
+- **Auto-snapshots** — files are snapshotted before every Edit/Write, stored in `.permit/snapshots/`
+- **`/permit-rollback`** — roll back any file to a previous version with fuzzy matching
+- **Collision detection** — checks if other files changed after the snapshot and warns you
+- **Configurable** — set snapshot threshold (all/caution/danger), max age, max size
+- **Auto-cleanup** — old snapshots are cleaned up automatically (default: 7 days, 100MB max)
+
+### Zero Config
+- Install and it works. All features enabled by default. Optional config if you want to tune.
 
 ## Install
 
@@ -153,8 +173,10 @@ hooks/
 
 core/
   analyzer.py        classifies tools, parses bash commands, detects risk
+  cost.py            token estimation, pricing, smart tips
+  rollback.py        file snapshots, manifest, collision detection
   patterns.py        workflow pattern recognition (explore, modify, test-fix, deploy)
-  tracker.py         session history with file heat tracking
+  tracker.py         session history with file heat and cost tracking
   formatter.py       ASCII box output with ANSI colors
   config.py          optional user configuration
 ```
@@ -181,9 +203,25 @@ Optional — create `.claude/permit.config.json` in your project or home directo
   "verbosity": "normal",
   "showDiagram": true,
   "showHistory": true,
-  "riskThreshold": "all"
+  "riskThreshold": "all",
+  "cost": {
+    "enabled": true,
+    "model": "opus",
+    "showPerOperation": true,
+    "showSessionTotal": true,
+    "showTips": true
+  },
+  "rollback": {
+    "enabled": true,
+    "snapshotThreshold": "all",
+    "maxAgeDays": 7,
+    "maxSizeMB": 100,
+    "autoCleanup": true
+  }
 }
 ```
+
+### General
 
 | Setting | Values | Default | Description |
 |---------|--------|---------|-------------|
@@ -191,6 +229,26 @@ Optional — create `.claude/permit.config.json` in your project or home directo
 | `showDiagram` | `true`, `false` | `true` | Show operation chain diagrams |
 | `showHistory` | `true`, `false` | `true` | Show related previous operations |
 | `riskThreshold` | `all`, `caution`, `danger` | `all` | Only show for this risk level and above |
+
+### Cost
+
+| Setting | Values | Default | Description |
+|---------|--------|---------|-------------|
+| `cost.enabled` | `true`, `false` | `true` | Show cost estimates |
+| `cost.model` | `opus`, `sonnet`, `haiku` | `opus` | Model for pricing (auto-detected from env if not set) |
+| `cost.showPerOperation` | `true`, `false` | `true` | Show per-operation cost |
+| `cost.showSessionTotal` | `true`, `false` | `true` | Show running session total |
+| `cost.showTips` | `true`, `false` | `true` | Show cost-saving tips |
+
+### Rollback
+
+| Setting | Values | Default | Description |
+|---------|--------|---------|-------------|
+| `rollback.enabled` | `true`, `false` | `true` | Auto-snapshot files before edits |
+| `rollback.snapshotThreshold` | `all`, `caution`, `danger` | `all` | Only snapshot at this risk level and above |
+| `rollback.maxAgeDays` | number | `7` | Delete snapshots older than this |
+| `rollback.maxSizeMB` | number | `100` | Max total snapshot storage |
+| `rollback.autoCleanup` | `true`, `false` | `true` | Automatically clean old snapshots |
 
 Set `riskThreshold` to `caution` if you don't want explanations for safe/read-only operations.
 

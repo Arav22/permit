@@ -2,6 +2,7 @@
 
 import pytest
 from core.analyzer import Analysis
+from core.cost import CostEstimate
 from core.patterns import WorkflowMatch
 from core.formatter import format_explanation, format_compact
 
@@ -127,3 +128,52 @@ class TestFormatCompact:
     def test_danger_compact(self):
         result = format_compact(_make_analysis(risk="danger", icon="⛔"))
         assert "DANGER" in result
+
+    def test_compact_with_cost(self):
+        cost = CostEstimate(input_tokens=100, output_tokens=50, cost_usd=0.003)
+        result = format_compact(_make_analysis(), cost=cost)
+        assert "~$0.003" in result
+
+
+class TestCostDisplay:
+    def test_cost_shown_in_box(self):
+        cost = CostEstimate(input_tokens=500, output_tokens=200, cost_usd=0.005)
+        result = format_explanation(_make_analysis(), cost=cost)
+        assert "Cost:" in result
+        assert "~$0.005" in result
+
+    def test_session_total_shown(self):
+        cost = CostEstimate(input_tokens=100, output_tokens=50, cost_usd=0.002)
+        result = format_explanation(_make_analysis(), cost=cost, session_cost_usd=0.42)
+        assert "Session:" in result
+        assert "~$0.42" in result
+
+    def test_tips_shown(self):
+        cost = CostEstimate(input_tokens=100, output_tokens=50, cost_usd=0.01, tips=["Use offset/limit"])
+        result = format_explanation(_make_analysis(), cost=cost)
+        assert "TIP:" in result
+        assert "offset/limit" in result
+
+    def test_cost_hidden_when_none(self):
+        result = format_explanation(_make_analysis(), cost=None)
+        assert "Cost:" not in result
+
+    def test_minimal_hides_cost(self):
+        cost = CostEstimate(input_tokens=100, output_tokens=50, cost_usd=0.01)
+        result = format_explanation(_make_analysis(), cost=cost, verbosity="minimal")
+        assert "Cost:" not in result
+        assert "TIP:" not in result
+
+    def test_snapshot_saved_shown(self):
+        result = format_explanation(_make_analysis(), snapshot_saved=True)
+        assert "Snapshot saved" in result
+
+    def test_cost_borders_aligned(self):
+        cost = CostEstimate(input_tokens=500, output_tokens=200, cost_usd=0.005, tips=["Switch to Sonnet"])
+        result = format_explanation(_make_analysis(), cost=cost, session_cost_usd=1.23)
+        lines = result.strip().split("\n")
+        for line in lines:
+            if line.startswith("+"):
+                assert line.endswith("+"), f"Border not closed: {line!r}"
+            elif line.startswith("|"):
+                assert line.endswith("|"), f"Right border missing: {line!r}"

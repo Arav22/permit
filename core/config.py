@@ -2,7 +2,26 @@
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+
+@dataclass
+class CostConfig:
+    enabled: bool = True
+    model: str = "opus"
+    show_per_operation: bool = True
+    show_session_total: bool = True
+    show_tips: bool = True
+
+
+@dataclass
+class RollbackConfig:
+    enabled: bool = True
+    snapshot_threshold: str = "all"
+    max_age_days: int = 7
+    max_size_mb: int = 100
+    max_file_size_bytes: int = 1_048_576
+    auto_cleanup: bool = True
 
 
 @dataclass
@@ -11,6 +30,40 @@ class PermitConfig:
     show_diagram: bool = True
     show_history: bool = True
     risk_threshold: str = "all"
+    cost: CostConfig = field(default_factory=CostConfig)
+    rollback: RollbackConfig = field(default_factory=RollbackConfig)
+
+
+def _parse_cost(data: dict) -> CostConfig:
+    c = CostConfig()
+    if "enabled" in data:
+        c.enabled = data["enabled"]
+    if "model" in data:
+        c.model = data["model"]
+    if "showPerOperation" in data:
+        c.show_per_operation = data["showPerOperation"]
+    if "showSessionTotal" in data:
+        c.show_session_total = data["showSessionTotal"]
+    if "showTips" in data:
+        c.show_tips = data["showTips"]
+    return c
+
+
+def _parse_rollback(data: dict) -> RollbackConfig:
+    r = RollbackConfig()
+    if "enabled" in data:
+        r.enabled = data["enabled"]
+    if "snapshotThreshold" in data:
+        r.snapshot_threshold = data["snapshotThreshold"]
+    if "maxAgeDays" in data:
+        r.max_age_days = data["maxAgeDays"]
+    if "maxSizeMB" in data:
+        r.max_size_mb = data["maxSizeMB"]
+    if "maxFileSizeBytes" in data:
+        r.max_file_size_bytes = data["maxFileSizeBytes"]
+    if "autoCleanup" in data:
+        r.auto_cleanup = data["autoCleanup"]
+    return r
 
 
 def load_config() -> PermitConfig:
@@ -34,6 +87,10 @@ def load_config() -> PermitConfig:
                     config.show_history = data["showHistory"]
                 if "riskThreshold" in data:
                     config.risk_threshold = data["riskThreshold"]
+                if "cost" in data and isinstance(data["cost"], dict):
+                    config.cost = _parse_cost(data["cost"])
+                if "rollback" in data and isinstance(data["rollback"], dict):
+                    config.rollback = _parse_rollback(data["rollback"])
                 return config
         except (FileNotFoundError, json.JSONDecodeError):
             continue
@@ -49,4 +106,15 @@ def should_show(config: PermitConfig, risk: str) -> bool:
     threshold = levels.get(config.risk_threshold, 0)
     risk_val = risk_values.get(risk, 0)
 
+    return risk_val >= threshold
+
+
+def should_snapshot(config: PermitConfig, risk: str) -> bool:
+    """Check if we should snapshot for this risk level."""
+    if not config.rollback.enabled:
+        return False
+    levels = {"all": 0, "caution": 1, "danger": 2}
+    risk_values = {"safe": 0, "caution": 1, "danger": 2}
+    threshold = levels.get(config.rollback.snapshot_threshold, 0)
+    risk_val = risk_values.get(risk, 0)
     return risk_val >= threshold

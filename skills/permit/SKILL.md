@@ -1,7 +1,7 @@
 ---
 name: permit
-description: Explain what the last permission prompt was about, show session activity, or configure permit settings
-argument-hint: [question about a permission | config | history]
+description: Explain permissions, show session cost, check rollback history, or configure permit settings
+argument-hint: [question about a permission | cost | rollback | config | history]
 allowed-tools: [Read, Bash, Write, Edit]
 ---
 
@@ -45,6 +45,14 @@ Show current permit configuration and help them change it. Config lives at `.cla
 ## When the user says "history"
 
 Read the session history file and show a timeline of all tool calls this session, with risk ratings and workflow patterns.
+
+## When the user says "cost"
+
+Read the session history file and sum up `cost_estimate_usd` across all events to show total session spend. Break down by tool type if helpful. Show tips for reducing cost (use Sonnet for routine tasks, use offset/limit for large reads, etc.).
+
+## When the user says "rollback" or "snapshots"
+
+Point them to `/permit-rollback` for interactive rollback. If they just want to see what snapshots exist, read `.permit/snapshots/manifest.json` and list recent snapshots with timestamps and file paths.
 
 ## Response style
 

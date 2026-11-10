@@ -1,3 +1,4 @@
+.permit/
 __pycache__/
 *.pyc
 *.pyo

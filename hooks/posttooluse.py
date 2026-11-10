@@ -15,9 +15,23 @@ if PLUGIN_ROOT not in sys.path:
 try:
     from core.analyzer import analyze_tool
     from core.tracker import record_event
+    from core.config import load_config
+    from core.cost import estimate_cost
+    from core.rollback import _load_manifest
 except ImportError:
     print(json.dumps({}))
     sys.exit(0)
+
+
+def _find_snapshot_id(tool_use_id: str) -> str | None:
+    """Find snapshot created by PreToolUse for this same tool call."""
+    if not tool_use_id:
+        return None
+    manifest = _load_manifest()
+    for sid, data in manifest.items():
+        if data.get("tool_use_id") == tool_use_id:
+            return sid
+    return None
 
 
 def main():
@@ -29,11 +43,20 @@ def main():
 
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input", {})
+    tool_use_id = input_data.get("tool_use_id", "")
 
     analysis = analyze_tool(tool_name, tool_input)
     if analysis is None:
         print(json.dumps({}))
         sys.exit(0)
+
+    config = load_config()
+    cost_usd = 0.0
+    if config.cost.enabled:
+        est = estimate_cost(tool_name, tool_input, config.cost.model)
+        cost_usd = est.cost_usd
+
+    snapshot_id = _find_snapshot_id(tool_use_id)
 
     file_path = tool_input.get("file_path")
     record_event(
@@ -41,6 +64,8 @@ def main():
         summary=analysis.title,
         file_path=file_path,
         risk=analysis.risk,
+        cost_estimate_usd=cost_usd,
+        snapshot_id=snapshot_id,
     )
 
     print(json.dumps({}))

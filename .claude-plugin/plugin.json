@@ -1,7 +1,7 @@
 {
   "name": "permit",
-  "version": "1.0.0",
-  "description": "Plain-English permission explainer for Claude Code — tells you what, why, and how safe every tool call is",
+  "version": "2.0.0",
+  "description": "Plain-English permission explainer with cost estimation and smart rollback for Claude Code",
   "author": "Arav",
   "license": "MIT",
   "hooks": "../hooks/hooks.json",

@@ -7,6 +7,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.analyzer import analyze_bash, analyze_edit, analyze_read
+from core.cost import estimate_cost, CostEstimate
 from core.formatter import format_explanation
 
 DEMOS = [
@@ -20,13 +21,24 @@ DEMOS = [
 
 
 def main():
-    print("\n  permit demo -- what you see when Claude asks for permissions\n")
+    print("\n  permit v2 demo -- permissions + cost + rollback\n")
+    session_total = 0.0
+
     for label, cmd in DEMOS:
         analysis = analyze_bash(cmd)
-        box = format_explanation(analysis)
+        cost = estimate_cost("Bash", {"command": cmd}, "opus")
+        session_total += cost.cost_usd
+
+        box = format_explanation(
+            analysis,
+            cost=cost,
+            session_cost_usd=session_total,
+            snapshot_saved=("edit" in label.lower()),
+        )
         print(f"  \033[2m$ {cmd}\033[0m")
         print(box)
         print()
+
     print("  Run with: python3 demo.py")
     print("  Install with: bash install.sh")
     print()

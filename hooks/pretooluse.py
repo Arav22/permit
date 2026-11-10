@@ -14,10 +14,12 @@ if PLUGIN_ROOT not in sys.path:
 
 try:
     from core.analyzer import analyze_tool
-    from core.tracker import get_chain, get_history, format_chain
+    from core.tracker import get_chain, get_history, format_chain, get_session_cost
     from core.formatter import format_explanation, format_compact
-    from core.config import load_config, should_show
+    from core.config import load_config, should_show, should_snapshot
     from core.patterns import detect_workflow, detect_file_heat
+    from core.cost import estimate_cost
+    from core.rollback import create_snapshot, ensure_gitignore
 except ImportError as e:
     print(json.dumps({"systemMessage": f"[permit] import error: {e}"}))
     sys.exit(0)
@@ -32,6 +34,7 @@ def main():
 
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input", {})
+    tool_use_id = input_data.get("tool_use_id", "")
 
     config = load_config()
     analysis = analyze_tool(tool_name, tool_input)
@@ -52,8 +55,36 @@ def main():
         if chain:
             chain_text = format_chain(chain, analysis.title)
 
+    cost_estimate = None
+    session_cost = 0.0
+    if config.cost.enabled:
+        cost_estimate = estimate_cost(tool_name, tool_input, config.cost.model)
+        if not config.cost.show_per_operation:
+            cost_estimate = None
+        if config.cost.show_session_total:
+            session_cost = get_session_cost()
+            if cost_estimate:
+                session_cost += cost_estimate.cost_usd
+        if cost_estimate and not config.cost.show_tips:
+            cost_estimate.tips = []
+
+    snapshot_saved = False
+    if tool_name in ("Edit", "Write") and file_path:
+        if should_snapshot(config, analysis.risk):
+            sid = create_snapshot(
+                file_path,
+                analysis.title,
+                max_file_size=config.rollback.max_file_size_bytes,
+                tool_use_id=tool_use_id,
+            )
+            if sid:
+                snapshot_saved = True
+                gi_warn = ensure_gitignore()
+                if gi_warn:
+                    analysis.warnings.append(gi_warn)
+
     if config.verbosity == "minimal":
-        message = format_compact(analysis, workflow=workflow)
+        message = format_compact(analysis, workflow=workflow, cost=cost_estimate)
     else:
         message = format_explanation(
             analysis,
@@ -61,6 +92,9 @@ def main():
             workflow=workflow,
             file_heat=heat,
             verbosity=config.verbosity,
+            cost=cost_estimate,
+            session_cost_usd=session_cost,
+            snapshot_saved=snapshot_saved,
         )
 
     print(json.dumps({"systemMessage": message}))

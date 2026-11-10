@@ -7,6 +7,7 @@ right-border alignment correct on every terminal and font.
 
 import re
 from core.analyzer import Analysis
+from core.cost import CostEstimate, format_cost, format_tokens
 from core.patterns import WorkflowMatch
 from typing import Optional
 
@@ -69,12 +70,23 @@ def _ascii(s: str) -> str:
     return "".join(c for c in s if ord(c) < 128)
 
 
+def _cost_color(cost_usd: float) -> str:
+    if cost_usd >= 0.10:
+        return _RED
+    if cost_usd >= 0.01:
+        return _YELLOW
+    return _GREEN
+
+
 def format_explanation(
     analysis: Analysis,
     related_chain: str = "",
     workflow: Optional[WorkflowMatch] = None,
     file_heat: int = 0,
     verbosity: str = "normal",
+    cost: Optional[CostEstimate] = None,
+    session_cost_usd: float = 0.0,
+    snapshot_saved: bool = False,
 ) -> str:
     color = _RISK_COLORS.get(analysis.risk, "")
     label = _RISK_LABELS.get(analysis.risk, "UNKNOWN")
@@ -100,8 +112,23 @@ def format_explanation(
         scope_line = _ascii(analysis.scope).strip()
         if blast:
             scope_line += f" [{blast}]"
+        if snapshot_saved:
+            scope_line += " [Snapshot saved]"
         rows.append("")
         rows.append(f"{_DIM}Scope: {scope_line}{_RESET}")
+
+    if cost and verbosity != "minimal":
+        cc = _cost_color(cost.cost_usd)
+        left = f"{cc}Cost: {format_cost(cost.cost_usd)} (est. {format_tokens(cost.input_tokens + cost.output_tokens)} tokens){_RESET}"
+        if session_cost_usd > 0:
+            right = f"{_DIM}Session: {format_cost(session_cost_usd)}{_RESET}"
+            rows.append(f"{left}  {right}")
+        else:
+            rows.append(left)
+
+    if cost and cost.tips and verbosity != "minimal":
+        for tip in cost.tips:
+            rows.append(f"{_CYAN}TIP: {_ascii(tip).strip()}{_RESET}")
 
     if file_heat > 1 and verbosity != "minimal":
         rows.append(f"{_DIM}Touched {file_heat}x this session{_RESET}")
@@ -122,7 +149,11 @@ def format_explanation(
     return _build_box(rows)
 
 
-def format_compact(analysis: Analysis, workflow: Optional[WorkflowMatch] = None) -> str:
+def format_compact(
+    analysis: Analysis,
+    workflow: Optional[WorkflowMatch] = None,
+    cost: Optional[CostEstimate] = None,
+) -> str:
     color = _RISK_COLORS.get(analysis.risk, "")
     label = _RISK_LABELS.get(analysis.risk, "?")
     explanation = _ascii(analysis.explanation).strip()
@@ -130,6 +161,8 @@ def format_compact(analysis: Analysis, workflow: Optional[WorkflowMatch] = None)
     if workflow:
         wf_label = _ascii(workflow.label).strip()
         line += f" {_DIM}[{wf_label}]{_RESET}"
+    if cost:
+        line += f" {_DIM}{format_cost(cost.cost_usd)}{_RESET}"
     return line
 
 

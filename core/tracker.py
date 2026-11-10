@@ -19,6 +19,8 @@ class ToolEvent:
     file_path: Optional[str] = None
     risk: str = "safe"
     denied: bool = False
+    cost_estimate_usd: float = 0.0
+    snapshot_id: Optional[str] = None
 
 
 def _session_file() -> str:
@@ -64,7 +66,8 @@ def _save_history(history: list[dict]):
 
 
 def record_event(tool_name: str, summary: str, file_path: Optional[str] = None,
-                 risk: str = "safe", denied: bool = False):
+                 risk: str = "safe", denied: bool = False,
+                 cost_estimate_usd: float = 0.0, snapshot_id: Optional[str] = None):
     """Record a tool event in session history."""
     history = _load_history()
     event = ToolEvent(
@@ -74,9 +77,16 @@ def record_event(tool_name: str, summary: str, file_path: Optional[str] = None,
         file_path=file_path,
         risk=risk,
         denied=denied,
+        cost_estimate_usd=cost_estimate_usd,
+        snapshot_id=snapshot_id,
     )
     history.append(asdict(event))
     _save_history(history)
+
+
+def get_session_cost() -> float:
+    """Sum of all cost estimates in this session."""
+    return sum(e.get("cost_estimate_usd", 0.0) for e in _load_history())
 
 
 def get_history() -> list[dict]:
