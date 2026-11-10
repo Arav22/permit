@@ -130,13 +130,35 @@ class TestSmartTips:
         tips = generate_tips("Write", {"content": content}, 0.01, "opus")
         assert any("Edit" in t for t in tips)
 
-    def test_sonnet_tip_for_expensive_opus(self):
+    def test_haiku_tip_for_trivial_on_opus(self):
+        # Trivial op (ls) on expensive Opus → recommend Haiku
         tips = generate_tips("Bash", {"command": "ls"}, 0.02, "opus")
-        assert any("Sonnet" in t for t in tips)
+        assert any("haiku" in t.lower() for t in tips)
 
-    def test_no_sonnet_tip_on_sonnet(self):
-        tips = generate_tips("Bash", {"command": "ls"}, 0.02, "sonnet")
-        assert not any("Sonnet" in t for t in tips)
+    def test_haiku_tip_for_trivial_on_sonnet(self):
+        # Trivial op (ls) on Sonnet → still recommend Haiku
+        tips = generate_tips("Bash", {"command": "ls"}, 0.001, "sonnet")
+        assert any("haiku" in t.lower() for t in tips)
+
+    def test_no_tip_for_routine_on_opus(self):
+        # Routine coding (Edit) on Opus → no tip (coach handles this, avoid duplication)
+        tips = generate_tips("Edit", {"file_path": "/tmp/f.py", "old_string": "x", "new_string": "y"}, 0.02, "opus")
+        assert not any("haiku" in t.lower() or "sonnet" in t.lower() for t in tips)
+
+    def test_upgrade_tip_for_complex_on_haiku(self):
+        # Agent spawn on Haiku → recommend Sonnet
+        tips = generate_tips("Agent", {"prompt": "do something"}, 0.05, "haiku")
+        assert any("sonnet" in t.lower() for t in tips)
+
+    def test_opus_tip_for_complex_on_sonnet(self):
+        # Agent spawn on Sonnet → recommend Opus
+        tips = generate_tips("Agent", {"prompt": "do something"}, 0.05, "sonnet")
+        assert any("opus" in t.lower() for t in tips)
+
+    def test_no_tip_on_right_model(self):
+        # Agent spawn on Opus → no model tip (Opus is correct for complex tasks)
+        tips = generate_tips("Agent", {"prompt": "do something"}, 0.05, "opus")
+        assert not any("/model" in t for t in tips)
 
     def test_full_test_tip(self):
         tips = generate_tips("Bash", {"command": "pytest"}, 0.01, "opus")

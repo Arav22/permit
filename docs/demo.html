@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>permit — demo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1e1e2e;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 24px;
+    min-height: 100vh;
+  }
+  .window {
+    background: #181825;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    width: 760px;
+    font-family: "SF Mono", "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  }
+  .titlebar {
+    background: #313244;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-red  { background: #ff5f57; }
+  .dot-yel  { background: #febc2e; }
+  .dot-grn  { background: #28c840; }
+  .title {
+    flex: 1;
+    text-align: center;
+    color: #6c7086;
+    font-size: 12px;
+    font-family: -apple-system, sans-serif;
+  }
+  pre {
+    color: #cdd6f4;
+    font-size: 13px;
+    line-height: 1.55;
+    padding: 20px 24px 28px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="titlebar">
+    <div class="dot dot-red"></div>
+    <div class="dot dot-yel"></div>
+    <div class="dot dot-grn"></div>
+    <div class="title">permit — demo</div>
+  </div>
+  <pre>
+  permit v4.2 — smarter than a rubber duck
+  verbosity=smart  model=opus  budget=$0.50
+
+  <span style="opacity:0.55">$ ls -la</span>
+<span style="color:#5fff87">SAFE</span>: Lists directory contents <span style="opacity:0.55">~$0.004</span>  <span style="opacity:0.55">| HINT: /resume -- pick up a previous session where you left off</span>
+
+  <span style="opacity:0.55">$ read core/cost.py</span>
+<span style="color:#5fff87">SAFE</span>: Reading ~/Desktop/.../core/cost.py. <span style="opacity:0.55">~$0.16</span>  <span style="opacity:0.55">| HINT: /model sonnet -- switch model for cheaper routine work</span>
+
+  <span style="opacity:0.55"># Claude edits core/cost.py (snapshot auto-saved)</span>
+
++-permit-----------------------------------------------------------+
+| <span style="color:#ffd75f"><span style="font-weight:bold">CAUTION</span></span> Edit -- ~/Desktop/.../core/cost.py                       |
+|   'return 0' -&gt; 'return 1' in ~/Desktop/.../core/cost.py         |
+| <span style="opacity:0.55">Why: Claude read a file and now wants to modify it</span>               |
+|                                                                  |
+| <span style="opacity:0.55">Scope: Local file. Reversible with git or undo. [Project file...</span> |
+| <span style="color:#5fff87">Cost: ~$0.004 (est. 94 tokens)</span>                                   |
+| <span style="color:#5fff87">Budget: ~$0.17 / $0.50  [===-------] 34%</span>                         |
+| <span style="opacity:0.55">HINT: /model sonnet -- switch model for cheaper routine work</span>     |
+|                                                                  |
+| <span style="color:#5fd7ff">COACH: Using Opus for routine coding</span>                             |
+|   Opus costs 5x more than Sonnet with no quality difference f... |
+|   Fix: Use Sonnet for edits/bash/reads. Switch to Opus for pl... |
+|   <span style="opacity:0.55">Command: /model sonnet</span>                                         |
+|                                                                  |
+| <span style="color:#5fd7ff">COACH: No CLAUDE.md found in project</span>                             |
+|   Without CLAUDE.md, Claude re-learns your project every sess... |
+|   Fix: Create CLAUDE.md with project overview, conventions, a... |
+|   <span style="opacity:0.55">Command: /init</span>                                                 |
+| <span style="opacity:0.55">Flow: Read -&gt; Edit (step 2/2)</span>                                    |
+|                                                                  |
+| <span style="opacity:0.55">Recent:</span>                                                          |
+| <span style="opacity:0.55">  |- ls -la (0s ago)</span>                                             |
+| <span style="opacity:0.55">  |- Read -- ~/Desktop/.../core/cost.py (0s ago)</span>                 |
+| <span style="opacity:0.55">  '- Edit -- ~/Desktop/.../core/cost.py (now)</span>                    |
++------------------------------------------------------------------+
+
+  <span style="opacity:0.55">$ pytest                                  # full test suite after a small edit</span>
+
++-permit-----------------------------------------------------------+
+| <span style="color:#ffd75f"><span style="font-weight:bold">CAUTION</span></span> pytest                                                   |
+|   Runs the Python test suite -- executes all test code           |
+| <span style="opacity:0.55">Why: Claude is editing code and running tests to verify the fix</span>  |
+|                                                                  |
+| <span style="opacity:0.55">Scope: Local only. No changes made.</span>                              |
+| <span style="color:#ff5f5f">Cost: ~$0.11 (est. 1K tokens)</span>                                    |
+| <span style="color:#5fff87">Budget: ~$0.28 / $0.50  [=====-----] 56%</span>                         |
+| <span style="color:#5fd7ff">TIP: Full test run -- consider running only relevant test files</span>  |
+| <span style="opacity:0.55">HINT: /init -- auto-generate CLAUDE.md from your project</span>         |
+|                                                                  |
+| <span style="color:#5fd7ff">COACH: Using Opus for routine coding</span>                             |
+|   Opus costs 5x more than Sonnet with no quality difference f... |
+|   Fix: Use Sonnet for edits/bash/reads. Switch to Opus for pl... |
+|   <span style="opacity:0.55">Command: /model sonnet</span>                                         |
+|                                                                  |
+| <span style="color:#5fd7ff">COACH: Running full test suite for a small change</span>                |
+|   Full test runs are slow and costly -- usually unnecessary f... |
+|   Fix: Run only the relevant test file: pytest tests/test_X.py   |
+|   <span style="opacity:0.55">Command: pytest tests/test_X.py</span>                                |
+| <span style="opacity:0.55">Flow: Fix cycle (step 2/2)</span>                                       |
+|                                                                  |
+| <span style="opacity:0.55">Recent:</span>                                                          |
+| <span style="opacity:0.55">  |- ls -la (0s ago)</span>                                             |
+| <span style="opacity:0.55">  |- Read -- ~/Desktop/.../core/cost.py (0s ago)</span>                 |
+| <span style="opacity:0.55">  |- Edit -- ~/Desktop/.../core/cost.py (0s ago)</span>                 |
+| <span style="opacity:0.55">  '- pytest (now)</span>                                                |
++------------------------------------------------------------------+
+
+  <span style="opacity:0.55">$ rm -rf dist &amp;&amp; npm run build            # chained destructive</span>
+
++-permit-----------------------------------------------------------+
+| <span style="color:#ff5f5f"><span style="font-weight:bold">DANGER</span></span> rm -rf, then npm run                                      |
+|   Runs 2 commands in order.                                      |
+|                                                                  |
+|   -&gt; rm -rf: Force-deletes files without confirmation            |
+|   -&gt; &amp;&amp; npm run: Runs an npm script -- check package.json to ... |
+|                                                                  |
+| <span style="opacity:0.55">Scope: Modifies local files. Reversible with git if tracked. ...</span> |
+| <span style="color:#5fff87">Cost: ~$0.008 (est. 119 tokens)</span>                                  |
+| <span style="color:#5fff87">Budget: ~$0.29 / $0.50  [=====-----] 58%</span>                         |
+| <span style="opacity:0.55">HINT: /init -- auto-generate CLAUDE.md from your project</span>         |
+|                                                                  |
+| <span style="color:#5fd7ff">COACH: Using Opus for routine coding</span>                             |
+|   Opus costs 5x more than Sonnet with no quality difference f... |
+|   Fix: Use Sonnet for edits/bash/reads. Switch to Opus for pl... |
+|   <span style="opacity:0.55">Command: /model sonnet</span>                                         |
+|                                                                  |
+| <span style="color:#5fd7ff">COACH: Chaining rm with other commands</span>                           |
+|   rm &amp;&amp; other_cmd means you can't stop between -- if rm delet... |
+|   Fix: Run rm separately, verify the result, then run the nex... |
+|   <span style="opacity:0.55">Command: run rm separately</span>                                     |
+|                                                                  |
+| <span style="opacity:0.55">Recent:</span>                                                          |
+| <span style="opacity:0.55">  |- Read -- ~/Desktop/.../core/cost.py (0s ago)</span>                 |
+| <span style="opacity:0.55">  |- Edit -- ~/Desktop/.../core/cost.py (0s ago)</span>                 |
+| <span style="opacity:0.55">  |- pytest (0s ago)</span>                                             |
+| <span style="opacity:0.55">  '- rm -rf, then npm run (now)</span>                                  |
++------------------------------------------------------------------+
+
+  <span style="opacity:0.55">$ export ANTHROPIC_MODEL=claude-opus-4   # obsolete pattern</span>
+
++-permit-----------------------------------------------------------+
+| <span style="color:#ffd75f"><span style="font-weight:bold">CAUTION</span></span> export ANTHROPIC_MODEL=claude-opus-4                     |
+|   Sets environment variables for the session                     |
+|                                                                  |
+| <span style="opacity:0.55">Scope: Local only. No changes made.</span>                              |
+| <span style="color:#5fff87">Cost: ~$0.008 (est. 121 tokens)</span>                                  |
+| <span style="color:#5fff87">Budget: ~$0.30 / $0.50  [======----] 60%</span>                         |
+| <span style="color:#ffd75f">HINT: OBS: ANTHROPIC_MODEL env var pollutes your shell -- use...</span> |
+|                                                                  |
+| <span style="color:#5fd7ff">COACH: Using Opus for routine coding</span>                             |
+|   Opus costs 5x more than Sonnet with no quality difference f... |
+|   Fix: Use Sonnet for edits/bash/reads. Switch to Opus for pl... |
+|   <span style="opacity:0.55">Command: /model sonnet</span>                                         |
+|                                                                  |
+| <span style="opacity:0.55">Recent:</span>                                                          |
+| <span style="opacity:0.55">  |- Edit -- ~/Desktop/.../core/cost.py (0s ago)</span>                 |
+| <span style="opacity:0.55">  |- pytest (0s ago)</span>                                             |
+| <span style="opacity:0.55">  |- rm -rf, then npm run (0s ago)</span>                               |
+| <span style="opacity:0.55">  '- export ANTHROPIC_MODEL=claude-opus-4 (now)</span>                  |
++------------------------------------------------------------------+
+
+  Session total: ~$0.300 estimated  |  budget: $0.50
+  Run: python3 demo.py  |  Install: bash install.sh
+
+</pre>
+</div>
+</body>
+</html>

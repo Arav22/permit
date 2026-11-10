@@ -1,5 +1,7 @@
 # permit
 
+> Screenshot: open `docs/demo.html` in your browser after cloning, or run `python3 generate_screenshot.py`
+
 **Every AI coding tool asks for permissions. None explain what they mean.**
 
 When Claude Code says *"Claude wants to run `git push origin main --force`"* — do you know what that actually does? What about `kubectl apply -f deployment.yaml` or `sed -i 's/foo/bar/' config.py`?

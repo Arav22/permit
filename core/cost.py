@@ -140,6 +140,57 @@ def _calculate_cost(input_tokens: int, output_tokens: int, model: str) -> float:
     return input_cost + output_cost
 
 
+def _classify_task(tool_name: str, tool_input: dict) -> str:
+    """Returns 'trivial', 'routine', or 'complex'."""
+    if tool_name == "Agent":
+        return "complex"
+
+    if tool_name == "Bash":
+        cmd = tool_input.get("command", "").strip()
+        if re.match(r"^(ls|pwd|echo|date|uname|whoami|which|type|true|false|wc|stat|file)\b", cmd):
+            return "trivial"
+        if re.search(r"\bagent\b|&&.*&&.*&&", cmd):
+            return "complex"
+        return "routine"
+
+    if tool_name == "Read":
+        path = tool_input.get("file_path", "")
+        has_limit = "limit" in tool_input or "offset" in tool_input
+        if not has_limit and path:
+            try:
+                lines = sum(1 for _ in open(path))
+                if lines > 500:
+                    return "complex"
+            except OSError:
+                pass
+        return "routine"
+
+    if tool_name in ("Edit", "Write"):
+        return "routine"
+
+    return "routine"
+
+
+def _model_tip(tool_name: str, tool_input: dict, model: str) -> str:
+    """Returns a contextual model recommendation, or '' if model is appropriate."""
+    task = _classify_task(tool_name, tool_input)
+
+    if task == "trivial":
+        if model == "opus":
+            return "Haiku handles this op -- /model haiku saves ~50x"
+        if model == "sonnet":
+            return "Haiku handles this op -- /model haiku saves ~10x"
+
+    elif task == "complex":
+        if model == "haiku":
+            return "Haiku may struggle here -- /model sonnet for better results"
+        if model == "sonnet":
+            return "Complex task -- /model opus has stronger reasoning"
+
+    # routine: coach already covers opus_for_coding, no duplicate tip needed
+    return ""
+
+
 def generate_tips(tool_name: str, tool_input: dict, cost_usd: float, model: str) -> list[str]:
     tips = []
 
@@ -158,8 +209,10 @@ def generate_tips(tool_name: str, tool_input: dict, cost_usd: float, model: str)
         if content.count("\n") > 200:
             tips.append("Large write -- could you Edit specific sections instead?")
 
-    if model == "opus" and cost_usd >= 0.02:
-        tips.append("Switch to Sonnet for routine tasks (/model sonnet) -- ~5x cheaper")
+    # Smart model recommendation: only when there's a real mismatch
+    model_tip = _model_tip(tool_name, tool_input, model)
+    if model_tip:
+        tips.append(model_tip)
 
     if tool_name == "Bash":
         cmd = tool_input.get("command", "")
