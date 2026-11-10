@@ -37,13 +37,16 @@ class CostEstimate:
 
 
 def _detect_model() -> str:
-    for var in ("ANTHROPIC_MODEL", "CLAUDE_MODEL"):
+    for var in ("ANTHROPIC_MODEL", "CLAUDE_MODEL", "AWS_BEDROCK_MODEL", "BEDROCK_MODEL_ID"):
         val = os.environ.get(var, "").lower()
+        if not val:
+            continue
         if "haiku" in val:
             return "haiku"
         if "sonnet" in val:
             return "sonnet"
-        if "opus" in val:
+        # opus and fable both map to the premium tier
+        if "opus" in val or "fable" in val:
             return "opus"
     return "opus"
 

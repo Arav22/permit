@@ -54,6 +54,34 @@ Read the session history file and sum up `cost_estimate_usd` across all events t
 
 Point them to `/permit-rollback` for interactive rollback. If they just want to see what snapshots exist, read `.permit/snapshots/manifest.json` and list recent snapshots with timestamps and file paths.
 
+## When the user says "project" or "project report"
+
+Generate the cross-session project report. Run:
+```
+python3 -c "
+import sys, os
+sys.path.insert(0, os.path.expanduser('~/.claude/plugins/permit'))
+from core.project_report import generate_project_report
+view = 'summary'
+print(generate_project_report(view))
+"
+```
+
+If the user says `project html`, also generate an HTML report:
+```
+python3 -c "
+import sys, os, subprocess
+sys.path.insert(0, os.path.expanduser('~/.claude/plugins/permit'))
+from core.project_report import save_html_report
+path = save_html_report()
+print(f'HTML report saved to: {path}')
+subprocess.run(['open', path])
+"
+```
+
+The report shows: total spend across all sessions, session cost bar chart, top tools,
+hottest files, and anti-pattern coach trends (improving vs getting worse).
+
 ## When the user says "summary"
 
 Run this Python to generate the report:

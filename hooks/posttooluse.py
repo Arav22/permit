@@ -18,6 +18,7 @@ try:
     from core.config import load_config
     from core.cost import estimate_cost
     from core.rollback import _load_manifest
+    from core.project_tracker import update_session
 except ImportError:
     print(json.dumps({}))
     sys.exit(0)
@@ -67,6 +68,18 @@ def main():
         cost_estimate_usd=cost_usd,
         snapshot_id=snapshot_id,
     )
+
+    try:
+        update_session(
+            tool_name=tool_name,
+            file_path=file_path or "",
+            risk=analysis.risk,
+            cost_usd=cost_usd,
+            model=config.cost.model,
+            patterns=[],
+        )
+    except Exception:
+        pass
 
     print(json.dumps({}))
     sys.exit(0)
