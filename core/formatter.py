@@ -9,6 +9,7 @@ import re
 from core.analyzer import Analysis
 from core.coach import Coaching
 from core.cost import CostEstimate, format_cost, format_tokens, check_budget, format_budget_bar
+from core.discovery import Hint
 from core.patterns import WorkflowMatch
 from typing import Optional
 
@@ -98,6 +99,7 @@ def format_explanation(
     snapshot_saved: bool = False,
     budget_usd: float = 0.0,
     coaching: Optional[list[Coaching]] = None,
+    hints: Optional[list[Hint]] = None,
 ) -> str:
     color = _RISK_COLORS.get(analysis.risk, "")
     label = _RISK_LABELS.get(analysis.risk, "UNKNOWN")
@@ -148,6 +150,10 @@ def format_explanation(
         for tip in cost.tips:
             rows.append(f"{_CYAN}TIP: {_ascii(tip).strip()}{_RESET}")
 
+    # Discovery hints — one-liner, shown in all verbosity levels (even smart)
+    if hints and verbosity != "minimal":
+        rows.append(f"{_DIM}HINT: {_ascii(hints[0].one_liner).strip()}{_RESET}")
+
     # Coach tips — shown in normal/detailed, never minimal/smart
     if coaching and verbosity not in ("minimal", "smart"):
         for c in coaching:
@@ -181,6 +187,7 @@ def format_compact(
     analysis: Analysis,
     workflow: Optional[WorkflowMatch] = None,
     cost: Optional[CostEstimate] = None,
+    hints: Optional[list[Hint]] = None,
 ) -> str:
     color = _RISK_COLORS.get(analysis.risk, "")
     label = _RISK_LABELS.get(analysis.risk, "?")
@@ -191,6 +198,8 @@ def format_compact(
         line += f" {_DIM}[{wf_label}]{_RESET}"
     if cost:
         line += f" {_DIM}{format_cost(cost.cost_usd)}{_RESET}"
+    if hints:
+        line += f"  {_DIM}| HINT: {_ascii(hints[0].one_liner).strip()}{_RESET}"
     return line
 
 

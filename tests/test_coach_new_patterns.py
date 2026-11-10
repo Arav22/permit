@@ -58,13 +58,21 @@ class TestNoGitCommit:
 
 class TestEditUnreadFile:
     def test_triggers_when_file_not_read(self, tmp_path):
-        result = detect_patterns("Edit", {"file_path": "/tmp/unread.py"}, [], "sonnet", str(tmp_path))
+        # Needs 5+ history items (fires only after session is established)
+        history = _make_history(edits=5)
+        result = detect_patterns("Edit", {"file_path": "/tmp/unread.py"}, history, "sonnet", str(tmp_path), max_tips=5)
         ids = [c.pattern_id for c in result]
         assert "edit_unread_file" in ids
 
     def test_no_trigger_when_file_was_read(self, tmp_path):
-        history = _make_history(reads=["/tmp/known.py"])
+        history = _make_history(reads=["/tmp/known.py"], edits=5)
         result = detect_patterns("Edit", {"file_path": "/tmp/known.py"}, history, "sonnet", str(tmp_path))
+        ids = [c.pattern_id for c in result]
+        assert "edit_unread_file" not in ids
+
+    def test_no_trigger_early_in_session(self, tmp_path):
+        # With < 5 history items, should NOT fire (avoids session-start noise)
+        result = detect_patterns("Edit", {"file_path": "/tmp/unread.py"}, [], "sonnet", str(tmp_path))
         ids = [c.pattern_id for c in result]
         assert "edit_unread_file" not in ids
 

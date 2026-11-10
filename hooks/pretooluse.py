@@ -21,6 +21,7 @@ try:
     from core.cost import estimate_cost
     from core.rollback import create_snapshot, ensure_gitignore
     from core.coach import detect_patterns
+    from core.discovery import detect_hints
 except ImportError as e:
     print(json.dumps({"systemMessage": f"[permit] import error: {e}"}))
     sys.exit(0)
@@ -85,17 +86,24 @@ def main():
                     analysis.warnings.append(gi_warn)
 
     coaching = []
-    if config.coach.enabled and config.verbosity not in ("minimal", "smart"):
-        coaching = detect_patterns(
-            tool_name, tool_input, history,
-            config.cost.model, os.getcwd(),
-            max_tips=config.coach.max_tips_per_box,
-        )
+    if config.coach.enabled and config.verbosity not in ("minimal",):
+        # Coach shown in normal/detailed always; in smart mode only for danger
+        show_coach = config.verbosity not in ("smart",) or analysis.risk == "danger"
+        if show_coach:
+            coaching = detect_patterns(
+                tool_name, tool_input, history,
+                config.cost.model, os.getcwd(),
+                max_tips=config.coach.max_tips_per_box,
+            )
+
+    hints = []
+    if config.coach.enabled:
+        hints = detect_hints(tool_name, tool_input, history, snapshot_saved, os.getcwd())
 
     # Smart verbosity: scale box size by risk
     if config.verbosity == "smart":
         if analysis.risk == "safe":
-            message = format_compact(analysis, workflow=workflow, cost=cost_estimate)
+            message = format_compact(analysis, workflow=workflow, cost=cost_estimate, hints=hints)
         elif analysis.risk == "caution":
             message = format_explanation(
                 analysis,
@@ -107,6 +115,7 @@ def main():
                 snapshot_saved=snapshot_saved,
                 budget_usd=config.cost.budget_usd,
                 coaching=[],
+                hints=hints,
             )
         else:
             message = format_explanation(
@@ -120,6 +129,7 @@ def main():
                 snapshot_saved=snapshot_saved,
                 budget_usd=config.cost.budget_usd,
                 coaching=coaching,
+                hints=hints,
             )
     elif config.verbosity == "minimal":
         message = format_compact(analysis, workflow=workflow, cost=cost_estimate)
@@ -135,6 +145,7 @@ def main():
             snapshot_saved=snapshot_saved,
             budget_usd=config.cost.budget_usd,
             coaching=coaching,
+            hints=hints,
         )
 
     print(json.dumps({"systemMessage": message}))

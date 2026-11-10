@@ -333,7 +333,8 @@ def detect_patterns(
         found.append("no_git_commit")
 
     # edit_unread_file: editing file not read in this session
-    if tool_name in ("Edit", "Write"):
+    # Only fire after 5+ history events to avoid spamming at session start
+    if tool_name in ("Edit", "Write") and len(history) >= 5:
         path = tool_input.get("file_path", "")
         if path and not _file_was_read(history, path):
             found.append("edit_unread_file")
