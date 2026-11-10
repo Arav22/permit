@@ -1,7 +1,7 @@
 [project]
 name = "permit"
 version = "3.0.0"
-description = "Plain-English permission explainer for Claude Code"
+description = "Plain-English permission explainer with cost estimation, smart rollback, and Claude Code coach"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

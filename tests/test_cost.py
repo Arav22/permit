@@ -39,7 +39,7 @@ class TestTokenEstimation:
 
     def test_bash_safe_cmd(self):
         result = estimate_cost("Bash", {"command": "ls -la"}, "opus")
-        assert result.output_tokens == 500
+        assert result.output_tokens == 50
 
     def test_bash_test_cmd(self):
         result = estimate_cost("Bash", {"command": "pytest -v"}, "opus")

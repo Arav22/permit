@@ -33,7 +33,7 @@ class RollbackConfig:
 
 @dataclass
 class PermitConfig:
-    verbosity: str = "normal"
+    verbosity: str = "smart"
     show_diagram: bool = True
     show_history: bool = True
     risk_threshold: str = "all"

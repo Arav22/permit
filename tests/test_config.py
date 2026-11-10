@@ -17,7 +17,7 @@ class TestDefaultConfig:
         monkeypatch.chdir(tmp_path)
         monkeypatch.setenv("HOME", str(tmp_path))
         config = load_config()
-        assert config.verbosity == "normal"
+        assert config.verbosity == "smart"
         assert config.show_diagram is True
         assert config.show_history is True
         assert config.risk_threshold == "all"

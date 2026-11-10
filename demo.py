@@ -21,7 +21,7 @@ DEMOS = [
 
 
 def main():
-    print("\n  permit v2 demo -- permissions + cost + rollback\n")
+    print("\n  permit v3 demo -- permissions + cost + rollback + coach\n")
     session_total = 0.0
 
     for label, cmd in DEMOS:

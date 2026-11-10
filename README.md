@@ -101,6 +101,46 @@ Now you know: it's an in-place edit of your `.env` file, it likely contains secr
 - **Configurable** — set snapshot threshold (all/caution/danger), max age, max size
 - **Auto-cleanup** — old snapshots are cleaned up automatically (default: 7 days, 100MB max)
 
+### Budget Alerts
+- **Set a session budget** — add `"cost": {"budget": 5.00}` to your config and get a live progress bar:
+  ```
+  Budget: ~$3.20 / $5.00  [========--] 64%
+  ```
+- **Color-coded warnings** — green → yellow at 80% → red when exceeded
+- **Zero config** — budget defaults to off; set it only if you want a ceiling
+
+### Smart Verbosity
+- **`"verbosity": "smart"`** — box size scales with risk (this is the default)
+  - `safe` → compact one-liner: `SAFE: ls -la  ~$0.001`
+  - `caution` → medium box with explanation and cost
+  - `danger` → full box with chain history, warnings, and tips
+- Eliminates alert fatigue from full 10-line boxes on every `ls`
+
+### Claude Code Coach
+- **Detects anti-patterns** in how you use Claude Code and shows the right way:
+
+  | Pattern | What it catches | Fix |
+  |---------|----------------|-----|
+  | `opus_for_coding` | Using Opus for edits/bash | `/model sonnet` — 5x cheaper, same quality |
+  | `context_bloat` | Session > 50 events | `/compact` or `/clear` |
+  | `big_read_no_limit` | Reading large files whole | `offset/limit` params |
+  | `full_test_run` | Running all tests for a small change | `pytest tests/test_X.py` |
+  | `agent_overkill` | Spawning an agent for a trivial task | Ask Claude directly |
+  | `no_claude_md` | No CLAUDE.md in project | `/init` |
+  | `repeated_large_read` | Same file read 3+ times | Use `offset/limit` or summarize once |
+
+- **Tips appear in the box** as `COACH:` lines with the specific command to fix it
+- **Learning trajectory** — escalates if you keep making the same mistake:
+  > *"You've seen this tip 5 times — fix it permanently with the command above"*
+
+### Session Report (`/permit summary`)
+- Structured breakdown of your entire session:
+  - Total estimated cost + most expensive operation
+  - Operations count with safe/caution/danger breakdown
+  - Files touched most (top 5)
+  - Snapshots saved
+  - Learning trajectory — which anti-patterns fired and how often
+
 ### Zero Config
 - Install and it works. All features enabled by default. Optional config if you want to tune.
 
@@ -200,13 +240,14 @@ Optional — create `.claude/permit.config.json` in your project or home directo
 
 ```json
 {
-  "verbosity": "normal",
+  "verbosity": "smart",
   "showDiagram": true,
   "showHistory": true,
   "riskThreshold": "all",
   "cost": {
     "enabled": true,
     "model": "opus",
+    "budget": 5.00,
     "showPerOperation": true,
     "showSessionTotal": true,
     "showTips": true
@@ -217,6 +258,10 @@ Optional — create `.claude/permit.config.json` in your project or home directo
     "maxAgeDays": 7,
     "maxSizeMB": 100,
     "autoCleanup": true
+  },
+  "coach": {
+    "enabled": true,
+    "maxTipsPerBox": 2
   }
 }
 ```
@@ -225,7 +270,7 @@ Optional — create `.claude/permit.config.json` in your project or home directo
 
 | Setting | Values | Default | Description |
 |---------|--------|---------|-------------|
-| `verbosity` | `minimal`, `normal`, `detailed` | `normal` | How much detail to show |
+| `verbosity` | `minimal`, `normal`, `detailed`, `smart` | `smart` | How much detail to show (`smart` scales by risk) |
 | `showDiagram` | `true`, `false` | `true` | Show operation chain diagrams |
 | `showHistory` | `true`, `false` | `true` | Show related previous operations |
 | `riskThreshold` | `all`, `caution`, `danger` | `all` | Only show for this risk level and above |
@@ -250,7 +295,26 @@ Optional — create `.claude/permit.config.json` in your project or home directo
 | `rollback.maxSizeMB` | number | `100` | Max total snapshot storage |
 | `rollback.autoCleanup` | `true`, `false` | `true` | Automatically clean old snapshots |
 
+### Coach
+
+| Setting | Values | Default | Description |
+|---------|--------|---------|-------------|
+| `coach.enabled` | `true`, `false` | `true` | Show anti-pattern tips in boxes |
+| `coach.maxTipsPerBox` | number | `2` | Max coach tips shown per box |
+
 Set `riskThreshold` to `caution` if you don't want explanations for safe/read-only operations.
+
+## Slash Commands
+
+| Command | Description |
+|---------|-------------|
+| `/permit` | Explain the last permission prompt in plain English |
+| `/permit cost` | Show session cost breakdown with tips to reduce spend |
+| `/permit summary` | Full session report: cost, operations, files, snapshots, learning |
+| `/permit coach` | Show your anti-pattern history and how to fix each one |
+| `/permit history` | Timeline of all tool calls this session |
+| `/permit config` | Show and edit your permit configuration |
+| `/permit-rollback` | Interactive rollback: fuzzy-find a snapshot and restore it |
 
 ## Development
 

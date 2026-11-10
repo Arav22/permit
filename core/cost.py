@@ -13,16 +13,18 @@ _PRICING = {
 _CHARS_PER_TOKEN = 4
 
 _BASH_OUTPUT_ESTIMATES = {
-    "ls": 500, "find": 500, "tree": 500, "du": 300,
-    "cat": 500, "head": 200, "tail": 200, "less": 500,
-    "git log": 1000, "git diff": 1000, "git status": 200,
-    "git show": 800, "git branch": 100,
-    "grep": 500, "rg": 500, "ag": 500,
-    "pytest": 1500, "python3 -m pytest": 1500,
-    "npm test": 1500, "npm run": 1000,
-    "make": 800, "cargo test": 1500,
-    "docker ps": 300, "kubectl get": 500,
-    "echo": 50, "pwd": 20, "whoami": 20, "date": 20,
+    "python3 -m pytest": 1500,
+    "git log": 1000, "git diff": 800, "git show": 600,
+    "git status": 100, "git branch": 50,
+    "git add": 50, "git commit": 100, "git push": 100,
+    "pytest": 1500, "npm test": 1500, "cargo test": 1500,
+    "npm run": 400, "make": 400,
+    "find": 300, "tree": 300,
+    "grep": 250, "rg": 250, "ag": 250,
+    "kubectl get": 300, "docker ps": 150,
+    "cat": 150, "head": 100, "tail": 100, "less": 150, "du": 100,
+    "ls": 50,
+    "echo": 30, "pwd": 20, "whoami": 20, "date": 20,
 }
 
 
@@ -70,7 +72,7 @@ def _bash_output_tokens(command: str) -> int:
     for prefix, tokens in sorted(_BASH_OUTPUT_ESTIMATES.items(), key=lambda x: -len(x[0])):
         if cmd.startswith(prefix):
             return tokens
-    return 500
+    return 100
 
 
 def _estimate_read(tool_input: dict) -> tuple[int, int]:
@@ -153,7 +155,7 @@ def generate_tips(tool_name: str, tool_input: dict, cost_usd: float, model: str)
         if content.count("\n") > 200:
             tips.append("Large write -- could you Edit specific sections instead?")
 
-    if model == "opus" and cost_usd > 0.01:
+    if model == "opus" and cost_usd >= 0.02:
         tips.append("Switch to Sonnet for routine tasks (/model sonnet) -- ~5x cheaper")
 
     if tool_name == "Bash":
