@@ -87,9 +87,8 @@ def main():
 
     coaching = []
     if config.coach.enabled and config.verbosity not in ("minimal",):
-        # Coach shown in normal/detailed always; in smart mode only for danger
-        show_coach = config.verbosity not in ("smart",) or analysis.risk == "danger"
-        if show_coach:
+        # Coach shown for caution and danger; not for safe (compact line = no room)
+        if analysis.risk in ("caution", "danger"):
             coaching = detect_patterns(
                 tool_name, tool_input, history,
                 config.cost.model, os.getcwd(),
@@ -114,7 +113,7 @@ def main():
                 session_cost_usd=session_cost,
                 snapshot_saved=snapshot_saved,
                 budget_usd=config.cost.budget_usd,
-                coaching=[],
+                coaching=coaching,
                 hints=hints,
             )
         else:

@@ -65,6 +65,12 @@ _DANGER = [
 
 # Caution: modifying, network, or side-effecting commands
 _CAUTION = [
+    # Test runners — execute code with potential side effects (network, files, DB)
+    (r"pytest\b", "Runs the Python test suite -- executes all test code"),
+    (r"python3?\s+-m\s+pytest", "Runs the Python test suite"),
+    (r"^cargo\s+test\b", "Runs Rust test suite -- executes all test code"),
+    (r"^go\s+test\b", "Runs Go test suite -- executes all test code"),
+    (r"^npm\s+test\b", "Runs npm test script -- check package.json to see what it does"),
     (r"npm\s+install", "Installs npm packages -- runs install scripts that execute arbitrary code"),
     (r"npm\s+run\b", "Runs an npm script -- check package.json to see what it does"),
     (r"npx\s+", "Downloads and runs an npm package"),
@@ -206,18 +212,13 @@ _SAFE = [
     (r"^docker\s+images\b", "Lists container images"),
     (r"^docker\s+logs\b", "Shows container logs"),
     (r"^make\s+-n\b", "Dry-run Makefile targets (no execution)"),
-    (r"^cargo\s+test\b", "Runs Rust test suite"),
     (r"^cargo\s+check\b", "Checks Rust code without compiling"),
     (r"^cargo\s+clippy\b", "Runs Rust linter"),
-    (r"^go\s+test\b", "Runs Go test suite"),
     (r"^go\s+vet\b", "Runs Go static analysis"),
-    (r"^npm\s+test\b", "Runs npm test script"),
     (r"^npm\s+ls\b", "Lists installed npm packages"),
     (r"^pip\s+list\b", "Lists installed Python packages"),
     (r"^pip\s+show\b", "Shows Python package details"),
     (r"^pip\s+freeze\b", "Lists pinned Python packages"),
-    (r"pytest\b", "Runs the Python test suite"),
-    (r"python3?\s+-m\s+pytest", "Runs the Python test suite"),
 ]
 
 # Sensitive file patterns

@@ -1,7 +1,7 @@
 {
   "name": "permit",
-  "version": "3.0.0",
-  "description": "Plain-English permission explainer with cost estimation and smart rollback for Claude Code",
+  "version": "4.2.0",
+  "description": "Plain-English permission explainer with cost estimation, smart rollback, Claude Code coach, and command discovery",
   "author": "Arav",
   "license": "MIT",
   "hooks": "../hooks/hooks.json",
