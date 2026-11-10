@@ -16,20 +16,20 @@ Claude wants to run: sed -i '' 's/DB_HOST=localhost/DB_HOST=prod.db.internal/' .
 
 **With permit** — you see this:
 ```
-+-permit-----------------------------------------------------+
-| ⚠️  CAUTION -- sed -i s/DB_HOST=localhost/DB_HOST=pr...    |
-|    Edits files in-place                                    |
-|                                                            |
-| !! Touches sensitive path: Environment file — likely       |
-|    contains secrets or API keys                            |
-|                                                            |
-| Scope: Modifies local files. Reversible with git if       |
-|    tracked.                                                |
-|                                                            |
-| Recent:                                                    |
-|      |- Read — ~/.../project/.env (12s ago)                |
-|      '- sed -i s/DB_HOST=localhost/DB_HOST=pr... (now)     |
-+------------------------------------------------------------+
++-permit----------------------------------------------------------+
+| CAUTION sed -i s/DB_HOST=localhost/DB_HOST=prod.db.internal/... |
+|   Edits files in-place                                          |
+|                                                                 |
+| !! Touches sensitive path: Environment file -- likely           |
+|    contains secrets or API keys                                 |
+|                                                                 |
+| Scope: Modifies local files. Reversible with git if tracked.   |
+|   [Project files]                                               |
+|                                                                 |
+| Recent:                                                         |
+|   |- Read -- .env (12s ago)                                     |
+|   '- sed -i s/DB_HOST=localhost/DB_HOST=prod... (now)           |
++------------------------------------------------------------------+
 ```
 
 Now you know: it's an in-place edit of your `.env` file, it likely contains secrets, and Claude just read it 12 seconds ago.
