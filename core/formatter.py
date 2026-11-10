@@ -7,7 +7,8 @@ right-border alignment correct on every terminal and font.
 
 import re
 from core.analyzer import Analysis
-from core.cost import CostEstimate, format_cost, format_tokens
+from core.coach import Coaching
+from core.cost import CostEstimate, format_cost, format_tokens, check_budget, format_budget_bar
 from core.patterns import WorkflowMatch
 from typing import Optional
 
@@ -78,6 +79,14 @@ def _cost_color(cost_usd: float) -> str:
     return _GREEN
 
 
+def _budget_color(status: str) -> str:
+    if status == "danger":
+        return _RED
+    if status == "caution":
+        return _YELLOW
+    return _GREEN
+
+
 def format_explanation(
     analysis: Analysis,
     related_chain: str = "",
@@ -87,6 +96,8 @@ def format_explanation(
     cost: Optional[CostEstimate] = None,
     session_cost_usd: float = 0.0,
     snapshot_saved: bool = False,
+    budget_usd: float = 0.0,
+    coaching: Optional[list[Coaching]] = None,
 ) -> str:
     color = _RISK_COLORS.get(analysis.risk, "")
     label = _RISK_LABELS.get(analysis.risk, "UNKNOWN")
@@ -120,7 +131,14 @@ def format_explanation(
     if cost and verbosity != "minimal":
         cc = _cost_color(cost.cost_usd)
         left = f"{cc}Cost: {format_cost(cost.cost_usd)} (est. {format_tokens(cost.input_tokens + cost.output_tokens)} tokens){_RESET}"
-        if session_cost_usd > 0:
+
+        if budget_usd > 0 and session_cost_usd > 0:
+            budget_status = check_budget(session_cost_usd, budget_usd)
+            bc = _budget_color(budget_status)
+            bar = _ascii(format_budget_bar(session_cost_usd, budget_usd))
+            rows.append(left)
+            rows.append(f"{bc}Budget: {bar}{_RESET}")
+        elif session_cost_usd > 0:
             right = f"{_DIM}Session: {format_cost(session_cost_usd)}{_RESET}"
             rows.append(f"{left}  {right}")
         else:
@@ -129,6 +147,16 @@ def format_explanation(
     if cost and cost.tips and verbosity != "minimal":
         for tip in cost.tips:
             rows.append(f"{_CYAN}TIP: {_ascii(tip).strip()}{_RESET}")
+
+    # Coach tips — shown in normal/detailed, never minimal/smart
+    if coaching and verbosity not in ("minimal", "smart"):
+        for c in coaching:
+            rows.append("")
+            rows.append(f"{_CYAN}COACH: {_ascii(c.title).strip()}{_RESET}")
+            rows.append(f"  {_ascii(c.problem).strip()}")
+            rows.append(f"  Fix: {_ascii(c.right_way).strip()}")
+            if c.command:
+                rows.append(f"  {_DIM}Command: {_ascii(c.command)}{_RESET}")
 
     if file_heat > 1 and verbosity != "minimal":
         rows.append(f"{_DIM}Touched {file_heat}x this session{_RESET}")

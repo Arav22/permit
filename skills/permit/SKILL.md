@@ -48,11 +48,36 @@ Read the session history file and show a timeline of all tool calls this session
 
 ## When the user says "cost"
 
-Read the session history file and sum up `cost_estimate_usd` across all events to show total session spend. Break down by tool type if helpful. Show tips for reducing cost (use Sonnet for routine tasks, use offset/limit for large reads, etc.).
+Read the session history file and sum up `cost_estimate_usd` across all events to show total session spend. Break down by tool type if helpful. Show tips for reducing cost (use Sonnet for routine tasks, use offset/limit for large reads, etc.). Remind them that actual AWS/Bedrock cost is higher due to context replay (typically 10-50x the tool estimates).
 
 ## When the user says "rollback" or "snapshots"
 
 Point them to `/permit-rollback` for interactive rollback. If they just want to see what snapshots exist, read `.permit/snapshots/manifest.json` and list recent snapshots with timestamps and file paths.
+
+## When the user says "summary"
+
+Run this Python to generate the report:
+```
+python3 -c "
+import sys; sys.path.insert(0, '/path/to/permit')
+import json, os
+from core.report import generate_report
+history_file = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'permit-history-latest.json')
+with open(history_file) as f:
+    history = json.load(f)
+print(generate_report(history))
+"
+```
+Show the output to the user. It covers: estimated cost, operation breakdown (safe/caution/danger), files touched, snapshots saved, and learning trajectory.
+
+## When the user says "coach" or "tips" or "am I using Claude Code right?"
+
+Read `~/.claude/permit-learning.json` to see which anti-patterns have been detected. Explain each one the user has triggered, the right way to do it, and the specific command. Common anti-patterns:
+- `opus_for_coding`: using Opus for edits/reads/bash → use `/model sonnet`
+- `context_bloat`: session > 50 events → use `/compact` or `/clear`
+- `big_read_no_limit`: reading large files → use `offset` and `limit`
+- `full_test_run`: running full test suite → target specific test files
+- `no_claude_md`: no CLAUDE.md in project → run `/init`
 
 ## Response style
 

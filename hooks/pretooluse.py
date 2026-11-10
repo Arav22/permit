@@ -20,6 +20,7 @@ try:
     from core.patterns import detect_workflow, detect_file_heat
     from core.cost import estimate_cost
     from core.rollback import create_snapshot, ensure_gitignore
+    from core.coach import detect_patterns
 except ImportError as e:
     print(json.dumps({"systemMessage": f"[permit] import error: {e}"}))
     sys.exit(0)
@@ -83,7 +84,44 @@ def main():
                 if gi_warn:
                     analysis.warnings.append(gi_warn)
 
-    if config.verbosity == "minimal":
+    coaching = []
+    if config.coach.enabled and config.verbosity not in ("minimal", "smart"):
+        coaching = detect_patterns(
+            tool_name, tool_input, history,
+            config.cost.model, os.getcwd(),
+            max_tips=config.coach.max_tips_per_box,
+        )
+
+    # Smart verbosity: scale box size by risk
+    if config.verbosity == "smart":
+        if analysis.risk == "safe":
+            message = format_compact(analysis, workflow=workflow, cost=cost_estimate)
+        elif analysis.risk == "caution":
+            message = format_explanation(
+                analysis,
+                workflow=workflow,
+                file_heat=heat,
+                verbosity="normal",
+                cost=cost_estimate,
+                session_cost_usd=session_cost,
+                snapshot_saved=snapshot_saved,
+                budget_usd=config.cost.budget_usd,
+                coaching=[],
+            )
+        else:
+            message = format_explanation(
+                analysis,
+                related_chain=chain_text if config.show_diagram else "",
+                workflow=workflow,
+                file_heat=heat,
+                verbosity="normal",
+                cost=cost_estimate,
+                session_cost_usd=session_cost,
+                snapshot_saved=snapshot_saved,
+                budget_usd=config.cost.budget_usd,
+                coaching=coaching,
+            )
+    elif config.verbosity == "minimal":
         message = format_compact(analysis, workflow=workflow, cost=cost_estimate)
     else:
         message = format_explanation(
@@ -95,6 +133,8 @@ def main():
             cost=cost_estimate,
             session_cost_usd=session_cost,
             snapshot_saved=snapshot_saved,
+            budget_usd=config.cost.budget_usd,
+            coaching=coaching,
         )
 
     print(json.dumps({"systemMessage": message}))

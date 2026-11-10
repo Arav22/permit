@@ -12,6 +12,13 @@ class CostConfig:
     show_per_operation: bool = True
     show_session_total: bool = True
     show_tips: bool = True
+    budget_usd: float = 0.0
+
+
+@dataclass
+class CoachConfig:
+    enabled: bool = True
+    max_tips_per_box: int = 2
 
 
 @dataclass
@@ -32,6 +39,7 @@ class PermitConfig:
     risk_threshold: str = "all"
     cost: CostConfig = field(default_factory=CostConfig)
     rollback: RollbackConfig = field(default_factory=RollbackConfig)
+    coach: CoachConfig = field(default_factory=CoachConfig)
 
 
 def _parse_cost(data: dict) -> CostConfig:
@@ -46,6 +54,17 @@ def _parse_cost(data: dict) -> CostConfig:
         c.show_session_total = data["showSessionTotal"]
     if "showTips" in data:
         c.show_tips = data["showTips"]
+    if "budget" in data:
+        c.budget_usd = float(data["budget"])
+    return c
+
+
+def _parse_coach(data: dict) -> CoachConfig:
+    c = CoachConfig()
+    if "enabled" in data:
+        c.enabled = data["enabled"]
+    if "maxTipsPerBox" in data:
+        c.max_tips_per_box = data["maxTipsPerBox"]
     return c
 
 
@@ -91,6 +110,8 @@ def load_config() -> PermitConfig:
                     config.cost = _parse_cost(data["cost"])
                 if "rollback" in data and isinstance(data["rollback"], dict):
                     config.rollback = _parse_rollback(data["rollback"])
+                if "coach" in data and isinstance(data["coach"], dict):
+                    config.coach = _parse_coach(data["coach"])
                 return config
         except (FileNotFoundError, json.JSONDecodeError):
             continue

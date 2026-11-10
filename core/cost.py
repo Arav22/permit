@@ -200,3 +200,23 @@ def format_tokens(tokens: int) -> str:
     if tokens >= 1000:
         return f"{tokens // 1000}K"
     return str(tokens)
+
+
+def check_budget(session_cost: float, budget: float) -> str:
+    """Returns '' if fine, 'caution' if approaching, 'danger' if exceeded."""
+    if budget <= 0:
+        return ""
+    if session_cost >= budget:
+        return "danger"
+    if session_cost >= budget * 0.8:
+        return "caution"
+    return ""
+
+
+def format_budget_bar(session_cost: float, budget: float) -> str:
+    """Returns a budget bar string like: ~$3.20 / $5.00  [========--] 80%"""
+    pct = min(1.0, session_cost / budget) if budget > 0 else 0
+    filled = int(pct * 10)
+    bar = "=" * filled + "-" * (10 - filled)
+    pct_str = f"{int(pct * 100)}%"
+    return f"{format_cost(session_cost)} / ${budget:.2f}  [{bar}] {pct_str}"
