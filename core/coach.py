@@ -260,6 +260,58 @@ def _has_test_write_in_session(history: list) -> bool:
     return False
 
 
+def _get_changed_src_files(history: list) -> list[str]:
+    """Return source files edited this session (not test files)."""
+    seen = []
+    for e in history:
+        if e.get("tool_name") in ("Edit", "Write"):
+            fp = e.get("file_path", "")
+            if fp and _is_src_file(fp) and fp not in seen:
+                seen.append(fp)
+    return seen
+
+
+def _find_test_file(src_path: str, project_root: str) -> str:
+    """Find the test file for a given source file, relative to project_root."""
+    name = os.path.splitext(os.path.basename(src_path))[0]
+    test_name = f"test_{name}.py"
+    # Walk project looking for the test file
+    for dirpath, _dirs, files in os.walk(project_root):
+        if test_name in files:
+            return os.path.relpath(os.path.join(dirpath, test_name), project_root)
+    # Fallback: guess tests/ directory
+    return os.path.join("tests", test_name)
+
+
+def _smart_test_command(history: list, project_root: str) -> str:
+    """Given session history, return the targeted pytest command."""
+    changed = _get_changed_src_files(history)
+    if not changed:
+        return "pytest tests/"
+    test_files = []
+    for src in changed[:4]:  # limit to 4 files
+        tf = _find_test_file(src, project_root)
+        if tf not in test_files:
+            test_files.append(tf)
+    if len(test_files) == 1:
+        return f"pytest {test_files[0]} -v"
+    files_str = " ".join(test_files)
+    return f"pytest {files_str}"
+
+
+def _is_pre_push_context(history: list, cmd: str) -> bool:
+    """True if this test run looks like it's before a git push/commit."""
+    recent_cmds = [
+        e.get("summary", "") for e in history[-10:]
+        if e.get("tool_name") == "Bash"
+    ]
+    push_signals = any(
+        "git push" in s or "git commit" in s or "git add" in s
+        for s in recent_cmds
+    )
+    return push_signals
+
+
 def _webfetch_domain_count(history: list, url: str) -> int:
     if not url:
         return 0
@@ -305,12 +357,14 @@ def detect_patterns(
             except OSError:
                 pass
 
-    # full_test_run: running full test suite
+    # full_test_run: running full test suite when targeted run is better
     if tool_name == "Bash":
         cmd = tool_input.get("command", "")
         if re.search(r"\bpytest\b|\bnpm test\b|\bcargo test\b", cmd):
             if not re.search(r"\b-k\b|\btest_\w+\.py\b|::\w+|tests/test_", cmd):
-                found.append("full_test_run")
+                # Pre-push context: full run is correct — don't warn
+                if not _is_pre_push_context(history, cmd):
+                    found.append("full_test_run")
 
     # agent_overkill: short/simple agent description
     if tool_name == "Agent":
@@ -396,6 +450,29 @@ def detect_patterns(
         if p:
             trajectory = format_trajectory(pid)
             right_way = p["right_way"]
+            command = p["command"]
+
+            # Smart full_test_run: show exact targeted command from session history
+            if pid == "full_test_run":
+                smart_cmd = _smart_test_command(history, project_root)
+                changed = _get_changed_src_files(history)
+                changed_names = ", ".join(os.path.basename(f) for f in changed[:3])
+                if changed_names:
+                    right_way = f"You changed: {changed_names}. Run only those tests."
+                    command = smart_cmd
+                else:
+                    command = smart_cmd
+                # Add pre-push advice
+                right_way += "  Full suite: only before git push."
+
+            # Smart missing_tests: show specific test file to create/update
+            if pid == "missing_tests":
+                path = tool_input.get("file_path", "")
+                if path and _is_src_file(path):
+                    test_file = _find_test_file(path, project_root)
+                    right_way = f"Update {test_file} with tests for your changes"
+                    command = f"pytest {test_file} -v"
+
             if trajectory:
                 right_way = f"{right_way}  ({trajectory})"
             result.append(Coaching(
@@ -403,7 +480,7 @@ def detect_patterns(
                 title=p["title"],
                 problem=p["problem"],
                 right_way=right_way,
-                command=p["command"],
+                command=command,
                 severity=p["severity"],
             ))
             record_pattern(pid)

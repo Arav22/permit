@@ -35,23 +35,23 @@ class TestHintResume:
 
 
 class TestHintCompact:
-    def test_fires_at_15_events(self, tmp_path):
+    def test_fires_at_30_events(self, tmp_path):
+        with patch("core.discovery._hint_seen_count", return_value=0), \
+             patch("core.discovery._record_hint"), \
+             patch("core.discovery.load_project_data", return_value={"sessions": []}), \
+             patch("core.discovery.get_session_cost", return_value=0), \
+             patch("core.discovery._has_claude_md", return_value=True):
+            hints = detect_hints("Bash", {"command": "ls"}, _history(30), False, str(tmp_path))
+        ids = [h.hint_id for h in hints]
+        assert "hint_compact" in ids
+
+    def test_does_not_fire_below_30(self, tmp_path):
         with patch("core.discovery._hint_seen_count", return_value=0), \
              patch("core.discovery._record_hint"), \
              patch("core.discovery.load_project_data", return_value={"sessions": []}), \
              patch("core.discovery.get_session_cost", return_value=0), \
              patch("core.discovery._has_claude_md", return_value=True):
             hints = detect_hints("Bash", {"command": "ls"}, _history(15), False, str(tmp_path))
-        ids = [h.hint_id for h in hints]
-        assert "hint_compact" in ids
-
-    def test_does_not_fire_below_15(self, tmp_path):
-        with patch("core.discovery._hint_seen_count", return_value=0), \
-             patch("core.discovery._record_hint"), \
-             patch("core.discovery.load_project_data", return_value={"sessions": []}), \
-             patch("core.discovery.get_session_cost", return_value=0), \
-             patch("core.discovery._has_claude_md", return_value=True):
-            hints = detect_hints("Bash", {"command": "ls"}, _history(5), False, str(tmp_path))
         ids = [h.hint_id for h in hints]
         assert "hint_compact" not in ids
 

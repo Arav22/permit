@@ -110,16 +110,21 @@ def detect_hints(
     if snapshot_saved:
         candidates.append(("hint_rollback", False))
 
-    # hint_compact: session growing (15-50, before coach context_bloat at 50)
-    if 15 <= n <= 50:
+    # hint_compact: fire at 30-40 messages — the ideal compact window before it gets expensive
+    if 30 <= n <= 55:
         candidates.append(("hint_compact", False))
 
     # hint_init: early session, no CLAUDE.md
     if 1 <= n <= 5 and not _has_claude_md(project_root):
         candidates.append(("hint_init", False))
 
-    # hint_clear: session > 30 and tool type changed
-    if n > 30 and _last_tool(history) != tool_name:
+    # hint_clear: after git commit/push — natural task boundary, fresh session saves tokens
+    if tool_name == "Bash":
+        cmd = tool_input.get("command", "")
+        if re.search(r"\bgit\s+commit\b|\bgit\s+push\b", cmd):
+            candidates.append(("hint_clear", False))
+    # Also when session is very long and changing task type
+    elif n > 60 and _last_tool(history) not in ("", tool_name):
         candidates.append(("hint_clear", False))
 
     # hint_project_report: project has multiple session dates

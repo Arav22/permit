@@ -21,9 +21,9 @@
     },
     {
       "id": "hint_compact",
-      "one_liner": "/compact -- compress context without losing work",
+      "one_liner": "/compact -- you're at ~30 msgs, compress now before context gets expensive",
       "added_in": "2024-04",
-      "note": "Keeps all file edits but compresses the conversation history"
+      "note": "Ideal window: 30-40 messages. After 50+ each message costs significantly more."
     },
     {
       "id": "hint_init",
@@ -33,9 +33,9 @@
     },
     {
       "id": "hint_clear",
-      "one_liner": "/clear -- fresh context when moving to a new task",
+      "one_liner": "/clear -- task done, start fresh to avoid paying for old context",
       "added_in": "2024-03",
-      "note": "Cheaper than compacting for completely unrelated work"
+      "note": "After git commit/push = natural task boundary. Fresh session = zero replay cost."
     },
     {
       "id": "hint_project_report",
