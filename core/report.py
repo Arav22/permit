@@ -7,7 +7,7 @@ from core.cost import format_cost
 from core.coach import get_learning_stats
 
 _ANSI_RE = re.compile(r"\033\[[0-9;]*m")
-_BOX_WIDTH = 68
+_BOX_WIDTH = 80
 _RESET = "\033[0m"
 _BOLD = "\033[1m"
 _DIM = "\033[2m"

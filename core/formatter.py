@@ -30,7 +30,7 @@ _BLAST_LABELS = {
 }
 
 _ANSI_RE = re.compile(r"\033\[[0-9;]*m")
-_BOX_WIDTH = 68
+_BOX_WIDTH = 80
 
 
 def _vlen(s: str) -> int:
@@ -70,6 +70,29 @@ def _pad(s: str, width: int) -> str:
 def _ascii(s: str) -> str:
     """Strip all non-ASCII characters from a string."""
     return "".join(c for c in s if ord(c) < 128)
+
+
+def _wrap(text: str, width: int, indent: str = "", cont_indent: str = "") -> list[str]:
+    """Word-wrap text to width. First line gets `indent`, continuations get `cont_indent`."""
+    if not cont_indent:
+        cont_indent = " " * len(indent)
+    words = _ascii(text).strip().split()
+    lines: list[str] = []
+    current = indent
+    first = True
+    for word in words:
+        prefix = indent if first else cont_indent
+        candidate = (current + " " + word) if current.strip() else prefix + word
+        if len(candidate) <= width:
+            current = candidate
+        else:
+            if current.strip():
+                lines.append(current)
+            current = cont_indent + word
+            first = False
+    if current.strip():
+        lines.append(current)
+    return lines or [indent]
 
 
 def _cost_color(cost_usd: float) -> str:
@@ -161,12 +184,15 @@ def format_explanation(
         rows.append(f"{hcolor}HINT: {_ascii(h.one_liner).strip()}{_RESET}")
 
     # Coach tips — shown in normal/detailed, never minimal/smart
+    inner_w = _BOX_WIDTH - 4
     if coaching and verbosity not in ("minimal", "smart"):
         for c in coaching:
             rows.append("")
             rows.append(f"{_CYAN}COACH: {_ascii(c.title).strip()}{_RESET}")
-            rows.append(f"  {_ascii(c.problem).strip()}")
-            rows.append(f"  Fix: {_ascii(c.right_way).strip()}")
+            for line in _wrap(c.problem, inner_w, "  "):
+                rows.append(line)
+            for line in _wrap(c.right_way, inner_w, "  Fix: "):
+                rows.append(line)
             if c.command:
                 rows.append(f"  {_DIM}Command: {_ascii(c.command)}{_RESET}")
 

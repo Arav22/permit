@@ -22,7 +22,7 @@ class TestDefaultConfig:
         assert config.show_history is True
         assert config.risk_threshold == "all"
         assert config.cost.enabled is True
-        assert config.cost.model == "opus"
+        assert config.cost.model == ""  # empty = auto-detect at runtime
         assert config.rollback.enabled is True
         assert config.rollback.snapshot_threshold == "all"
         assert config.rollback.max_age_days == 7

@@ -22,6 +22,7 @@ try:
     from core.rollback import create_snapshot, ensure_gitignore
     from core.coach import detect_patterns
     from core.discovery import detect_hints
+    from core.cost import _detect_model
 except ImportError as e:
     print(json.dumps({"systemMessage": f"[permit] import error: {e}"}))
     sys.exit(0)
@@ -57,10 +58,13 @@ def main():
         if chain:
             chain_text = format_chain(chain, analysis.title)
 
+    # Auto-detect model when not explicitly configured
+    active_model = config.cost.model or _detect_model()
+
     cost_estimate = None
     session_cost = 0.0
     if config.cost.enabled:
-        cost_estimate = estimate_cost(tool_name, tool_input, config.cost.model)
+        cost_estimate = estimate_cost(tool_name, tool_input, active_model)
         if not config.cost.show_per_operation:
             cost_estimate = None
         if config.cost.show_session_total:
@@ -91,7 +95,7 @@ def main():
         if analysis.risk in ("caution", "danger"):
             coaching = detect_patterns(
                 tool_name, tool_input, history,
-                config.cost.model, os.getcwd(),
+                active_model, os.getcwd(),
                 max_tips=config.coach.max_tips_per_box,
             )
 

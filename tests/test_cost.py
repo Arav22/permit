@@ -96,9 +96,12 @@ class TestModelDetection:
         monkeypatch.delenv("ANTHROPIC_MODEL", raising=False)
         assert _detect_model() == "haiku"
 
-    def test_default_opus(self, monkeypatch):
-        monkeypatch.delenv("ANTHROPIC_MODEL", raising=False)
-        monkeypatch.delenv("CLAUDE_MODEL", raising=False)
+    def test_default_when_no_env(self, monkeypatch):
+        # When no env vars are set at all, falls back to opus
+        for var in ("ANTHROPIC_MODEL", "CLAUDE_MODEL", "AWS_BEDROCK_MODEL",
+                    "BEDROCK_MODEL_ID", "CLAUDE_CODE_3P_SEEDED_SONNET_DEFAULT",
+                    "CLAUDE_CODE_USE_BEDROCK", "ANTHROPIC_DEFAULT_SONNET_MODEL"):
+            monkeypatch.delenv(var, raising=False)
         assert _detect_model() == "opus"
 
 

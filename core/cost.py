@@ -37,6 +37,7 @@ class CostEstimate:
 
 
 def _detect_model() -> str:
+    # Standard vars first
     for var in ("ANTHROPIC_MODEL", "CLAUDE_MODEL", "AWS_BEDROCK_MODEL", "BEDROCK_MODEL_ID"):
         val = os.environ.get(var, "").lower()
         if not val:
@@ -45,9 +46,21 @@ def _detect_model() -> str:
             return "haiku"
         if "sonnet" in val:
             return "sonnet"
-        # opus and fable both map to the premium tier
         if "opus" in val or "fable" in val:
             return "opus"
+
+    # Claude Code Bedrock env vars (set automatically by Claude Code)
+    # CLAUDE_CODE_3P_SEEDED_SONNET_DEFAULT = the model seeded as the Sonnet tier
+    seeded = os.environ.get("CLAUDE_CODE_3P_SEEDED_SONNET_DEFAULT", "").lower()
+    if seeded and "sonnet" in seeded:
+        return "sonnet"
+
+    # ANTHROPIC_DEFAULT_SONNET_MODEL / ANTHROPIC_DEFAULT_OPUS_MODEL
+    # If Bedrock is active and default sonnet is set, the interactive model is sonnet
+    if os.environ.get("CLAUDE_CODE_USE_BEDROCK"):
+        if os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL"):
+            return "sonnet"
+
     return "opus"
 
 

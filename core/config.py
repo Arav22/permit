@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 @dataclass
 class CostConfig:
     enabled: bool = True
-    model: str = "opus"
+    model: str = ""
     show_per_operation: bool = True
     show_session_total: bool = True
     show_tips: bool = True
