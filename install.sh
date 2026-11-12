@@ -92,8 +92,9 @@ print(f"  Settings written to {settings_path}")
 PYEOF
 
 echo ""
-echo "  Done! permit v3 is now active."
-echo "  Features: permission explainer + cost estimation + smart rollback + coach"
-echo "  Restart Claude Code to see it in action."
-echo "  Use /permit-rollback to undo file changes."
+echo "  Done! permit v4.2 is now active."
+echo "  Features: permission explainer + cost estimation + smart rollback"
+echo "            + coach (15 patterns) + command discovery hints + project report"
+echo "  Restart Claude Code to activate."
+echo "  Run /permit update to get the latest hints catalog from GitHub."
 echo ""
