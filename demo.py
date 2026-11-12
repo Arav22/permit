@@ -70,6 +70,9 @@ STEPS = [
 ]
 
 
+_seen_coach_ids = set()  # demo: each coach pattern shown once only
+
+
 def _run_step(tool_name, tool_input, snapshot_saved, history, session_cost):
     analysis = analyze_tool(tool_name, tool_input)
     if analysis is None:
@@ -84,11 +87,16 @@ def _run_step(tool_name, tool_input, snapshot_saved, history, session_cost):
 
     coaching = []
     if analysis.risk in ("caution", "danger"):
-        coaching = detect_patterns(
+        all_coaching = detect_patterns(
             tool_name, tool_input, history,
             config.cost.model, PROJECT_ROOT,
             max_tips=2,
         )
+        # Demo: show each pattern ID only once so the same tip doesn't repeat
+        for c in all_coaching:
+            if c.pattern_id not in _seen_coach_ids:
+                coaching.append(c)
+                _seen_coach_ids.add(c.pattern_id)
 
     hints = detect_hints(tool_name, tool_input, history, snapshot_saved, PROJECT_ROOT)
 

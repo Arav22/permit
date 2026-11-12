@@ -160,7 +160,7 @@ def detect_hints(
                 # Obsolete hints go first — they're more urgent
                 candidates.insert(0, (obs_id, True))
                 # Register the one_liner for this obs entry
-                hint_map[obs_id] = f"OBS: {obs['message']} -- use: {obs['newer_command']}"
+                hint_map[obs_id] = f"{obs['message']} -- use {obs['newer_command']}"
                 break
         except re.error:
             pass

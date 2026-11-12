@@ -73,7 +73,6 @@ class TestObsolescenceDetection:
             )
         assert len(hints) == 1
         assert hints[0].is_obsolete is True
-        assert "OBS:" in hints[0].one_liner
         assert "/model" in hints[0].one_liner
 
     def test_obs_settings_cat_fires(self, tmp_path):
