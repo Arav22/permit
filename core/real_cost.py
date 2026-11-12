@@ -12,10 +12,12 @@ from datetime import datetime
 
 _STATS_PATH = os.path.expanduser("~/.claude/stats-cache.json")
 
-# Bedrock pricing per million tokens (Claude 4 family)
+# Bedrock pricing per million tokens — calibrated against real Nov 2026 AWS bill
+# Claude 4.x is dramatically cheaper than Claude 3.x, especially output tokens
+# Opus 4.6 calibrated: $80.43 actual for 94.59M cache_read + 4.35M cache_create + 516K output
 _PRICES = {
-    "sonnet": {"input": 3.0,  "output": 15.0, "cache_read": 0.30, "cache_create": 3.75},
-    "opus":   {"input": 15.0, "output": 75.0, "cache_read": 1.50, "cache_create": 18.75},
+    "sonnet": {"input": 3.0,  "output": 15.0, "cache_read": 0.30, "cache_create": 3.00},
+    "opus":   {"input": 3.0,  "output": 15.0, "cache_read": 0.63, "cache_create": 3.00},
     "haiku":  {"input": 0.80, "output": 4.0,  "cache_read": 0.08, "cache_create": 1.00},
 }
 
