@@ -31,14 +31,18 @@ from core.tracker import format_chain
 from core.coach import detect_patterns
 from core.discovery import detect_hints
 from core.config import PermitConfig, CostConfig, CoachConfig
+from core.cost import _detect_model
 
-# Realistic config: smart verbosity, $0.50 budget, opus model
+# Auto-detect the actual model in use
+_active_model = _detect_model()
+
+# Realistic config: smart verbosity, $0.50 budget, auto-detected model
 config = PermitConfig(
     verbosity="smart",
     show_diagram=True,
     show_history=True,
     cost=CostConfig(
-        enabled=True, model="opus", budget_usd=0.50,
+        enabled=True, model=_active_model, budget_usd=0.50,
         show_per_operation=True, show_session_total=True, show_tips=True,
     ),
     coach=CoachConfig(enabled=True, max_tips_per_box=2),
@@ -134,7 +138,7 @@ def _run_step(tool_name, tool_input, snapshot_saved, history, session_cost):
 
 def main():
     print(f"\n  permit v4.2 — smarter than a rubber duck")
-    print(f"  verbosity=smart  model=opus  budget=$0.50\n")
+    print(f"  verbosity=smart  model={_active_model}  budget=$0.50\n")
 
     history = []
     session_cost = 0.0

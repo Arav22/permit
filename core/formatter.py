@@ -159,16 +159,26 @@ def format_explanation(
 
     if cost and verbosity != "minimal":
         cc = _cost_color(cost.cost_usd)
-        left = f"{cc}Cost: {format_cost(cost.cost_usd)} (est. {format_tokens(cost.input_tokens + cost.output_tokens)} tokens){_RESET}"
+        left = f"{cc}Cost: {format_cost(cost.cost_usd)} (est. {format_tokens(cost.input_tokens + cost.output_tokens)} tok){_RESET}"
+
+        # Show real session cost from stats-cache if available, else estimated
+        real_cost = getattr(cost, "_real_session_cost", None)
+        real_tokens = getattr(cost, "_real_session_tokens", 0)
+        if real_cost is not None and real_cost > 0:
+            from core.real_cost import format_real_cost as _fmt_real
+            right = f"{_DIM}Session: {_fmt_real(real_cost, real_tokens)} real{_RESET}"
+        elif session_cost_usd > 0:
+            right = f"{_DIM}Session: {format_cost(session_cost_usd)} est.{_RESET}"
+        else:
+            right = None
 
         if budget_usd > 0 and session_cost_usd > 0:
             budget_status = check_budget(session_cost_usd, budget_usd)
             bc = _budget_color(budget_status)
             bar = _ascii(format_budget_bar(session_cost_usd, budget_usd))
-            rows.append(left)
+            rows.append(left if right is None else f"{left}  {right}")
             rows.append(f"{bc}Budget: {bar}{_RESET}")
-        elif session_cost_usd > 0:
-            right = f"{_DIM}Session: {format_cost(session_cost_usd)}{_RESET}"
+        elif right:
             rows.append(f"{left}  {right}")
         else:
             rows.append(left)

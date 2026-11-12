@@ -58,9 +58,11 @@ class TestNoGitCommit:
 
 class TestEditUnreadFile:
     def test_triggers_when_file_not_read(self, tmp_path):
-        # Needs 5+ history items (fires only after session is established)
+        # Needs 5+ history AND file must be >100 lines
+        f = tmp_path / "big_unread.py"
+        f.write_text("\n".join(f"# line {i}" for i in range(110)))
         history = _make_history(edits=5)
-        result = detect_patterns("Edit", {"file_path": "/tmp/unread.py"}, history, "sonnet", str(tmp_path), max_tips=5)
+        result = detect_patterns("Edit", {"file_path": str(f)}, history, "sonnet", str(tmp_path), max_tips=5)
         ids = [c.pattern_id for c in result]
         assert "edit_unread_file" in ids
 
@@ -93,13 +95,17 @@ class TestLongSession:
 
 class TestMissingTests:
     def test_triggers_when_no_test_written(self, tmp_path):
-        # Create CLAUDE.md so no_claude_md doesn't fire; populate history so
-        # edit_unread_file doesn't fire either — this lets missing_tests surface.
+        # Needs 4+ prior src edits with no test file touched (5 total triggers)
         (tmp_path / "CLAUDE.md").write_text("# project")
         fp = str(tmp_path / "core" / "cost.py")
+        # 4 prior src edits + file was read
         history = [
             {"tool_name": "Read", "file_path": fp, "summary": "read", "risk": "safe"},
-        ] * 5  # file was read, session is not too fresh
+            {"tool_name": "Edit", "file_path": fp, "summary": "edit", "risk": "caution"},
+            {"tool_name": "Edit", "file_path": fp, "summary": "edit", "risk": "caution"},
+            {"tool_name": "Edit", "file_path": fp, "summary": "edit", "risk": "caution"},
+            {"tool_name": "Edit", "file_path": fp, "summary": "edit", "risk": "caution"},
+        ]
         result = detect_patterns("Edit", {"file_path": fp}, history, "sonnet", str(tmp_path), max_tips=5)
         ids = [c.pattern_id for c in result]
         assert "missing_tests" in ids

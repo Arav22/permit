@@ -146,6 +146,9 @@ _PATTERNS = [
 
 _PATTERN_MAP = {p["id"]: p for p in _PATTERNS}
 
+# Track which patterns fired in this process invocation (for sessions counter)
+_this_invocation: set = set()
+
 
 def _load_learning() -> dict:
     try:
@@ -169,6 +172,10 @@ def record_pattern(pattern_id: str):
     entry = data.get(pattern_id, {"count": 0, "sessions": 0, "last_seen": 0})
     entry["count"] = entry.get("count", 0) + 1
     entry["last_seen"] = time.time()
+    # Increment sessions only on first occurrence per process invocation
+    if pattern_id not in _this_invocation:
+        entry["sessions"] = entry.get("sessions", 0) + 1
+        _this_invocation.add(pattern_id)
     data[pattern_id] = entry
     _save_learning(data)
 
@@ -332,22 +339,33 @@ def detect_patterns(
     if tool_name in ("Edit", "Write") and _edits_since_last_commit(history) > 10:
         found.append("no_git_commit")
 
-    # edit_unread_file: editing file not read in this session
-    # Only fire after 5+ history events to avoid spamming at session start
+    # edit_unread_file: editing a large file that wasn't read this session
+    # Only fire after 5+ events AND only for non-trivial files (>100 lines)
     if tool_name in ("Edit", "Write") and len(history) >= 5:
         path = tool_input.get("file_path", "")
         if path and not _file_was_read(history, path):
-            found.append("edit_unread_file")
+            try:
+                with open(path) as _f:
+                    file_lines = sum(1 for _ in _f)
+                if file_lines > 100:
+                    found.append("edit_unread_file")
+            except OSError:
+                pass
 
     # long_session: session > 100 events
     if _session_event_count(history) > 100:
         found.append("long_session")
 
-    # missing_tests: editing src file, no test file touched
+    # missing_tests: 5+ src edits in this session with zero test files touched
     if tool_name in ("Edit", "Write"):
         path = tool_input.get("file_path", "")
         if _is_src_file(path) and not _has_test_write_in_session(history):
-            found.append("missing_tests")
+            src_edits = sum(
+                1 for e in history
+                if e.get("tool_name") in ("Edit", "Write") and _is_src_file(e.get("file_path", ""))
+            )
+            if src_edits >= 4:  # 4 past + current = 5 total
+                found.append("missing_tests")
 
     # webfetch_repeated: same domain fetched 3+ times
     if tool_name == "WebFetch":

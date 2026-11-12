@@ -23,6 +23,7 @@ try:
     from core.coach import detect_patterns
     from core.discovery import detect_hints
     from core.cost import _detect_model
+    from core.real_cost import get_session_real_cost, format_real_cost
 except ImportError as e:
     print(json.dumps({"systemMessage": f"[permit] import error: {e}"}))
     sys.exit(0)
@@ -38,6 +39,7 @@ def main():
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input", {})
     tool_use_id = input_data.get("tool_use_id", "")
+    session_id = input_data.get("session_id", os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
 
     config = load_config()
     analysis = analyze_tool(tool_name, tool_input)
@@ -68,9 +70,18 @@ def main():
         if not config.cost.show_per_operation:
             cost_estimate = None
         if config.cost.show_session_total:
-            session_cost = get_session_cost()
-            if cost_estimate:
-                session_cost += cost_estimate.cost_usd
+            # Use real token data from stats-cache.json when available
+            real_cost, real_tokens = get_session_real_cost(session_id)
+            if real_cost > 0:
+                session_cost = real_cost
+                # Inject real cost label into cost_estimate for display
+                if cost_estimate:
+                    cost_estimate._real_session_cost = real_cost
+                    cost_estimate._real_session_tokens = real_tokens
+            else:
+                session_cost = get_session_cost()
+                if cost_estimate:
+                    session_cost += cost_estimate.cost_usd
         if cost_estimate and not config.cost.show_tips:
             cost_estimate.tips = []
 
